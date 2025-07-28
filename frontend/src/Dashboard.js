@@ -21,7 +21,6 @@ const Dashboard = () => {
       setUser(JSON.parse(userData));
       fetchBills();
     } else {
-      // Show login form
       setLoading(false);
     }
   };
