@@ -219,14 +219,13 @@ class LegiScanService {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.baseUrl = LEGISCAN_BASE_URL;
-    this.requestDelay = 500; // 0.5 seconds between requests for faster sync
+    this.requestDelay = 500;
   }
 
   async makeRequest(endpoint, params = {}) {
     try {
       const url = `${this.baseUrl}/?key=${this.apiKey}&${new URLSearchParams(params).toString()}`;
       
-      // Add delay to respect API rate limits
       await new Promise(resolve => setTimeout(resolve, this.requestDelay));
       
       const response = await axios.get(url, { timeout: 30000 });
@@ -238,7 +237,6 @@ class LegiScanService {
       }
     } catch (error) {
       if (error.response?.status === 429) {
-        // Rate limit hit - wait longer and retry once
         console.log('⏳ Rate limit hit, waiting 60 seconds...');
         await new Promise(resolve => setTimeout(resolve, 60000));
         return this.makeRequest(endpoint, params);
@@ -259,13 +257,10 @@ class LegiScanService {
         year: currentYear
       });
       
-      // FIX: Handle various response formats from LegiScan
       if (data && data.searchresult) {
-        // Sometimes searchresult is an object with summary info, not an array
         if (Array.isArray(data.searchresult)) {
           return data.searchresult;
         } else if (data.searchresult && data.searchresult.summary) {
-          // LegiScan sometimes returns summary data instead of bill results
           console.log(`   Search returned summary data only for "${keyword}"`);
           return [];
         } else {
@@ -308,11 +303,10 @@ class LegiScanService {
       }
     });
 
-    // Boost score for high-priority keywords
     const highPriorityKeywords = ['money laundering', 'financial crimes', 'asset forfeiture', 'aml'];
     highPriorityKeywords.forEach(keyword => {
       if (content.includes(keyword)) {
-        relevanceScore += 2; // Extra points for high-priority terms
+        relevanceScore += 2;
       }
     });
 
@@ -362,14 +356,7 @@ class LegiScanService {
 
   calculateProgress(status, history = []) {
     const progressMap = {
-      1: 10,  // Introduced
-      2: 25,  // In Committee
-      3: 40,  // Committee Review  
-      4: 70,  // Passed Chamber
-      5: 90,  // Passed Both
-      6: 100, // Enacted
-      7: 0,   // Vetoed
-      8: 0    // Failed
+      1: 10, 2: 25, 3: 40, 4: 70, 5: 90, 6: 100, 7: 0, 8: 0
     };
     return progressMap[status] || 0;
   }
@@ -386,10 +373,9 @@ class LegiScanService {
   }
 }
 
-// Initialize LegiScan service
 const legiScan = new LegiScanService(LEGISCAN_API_KEY);
 
-// ===== FIXED Bill Synchronization Function =====
+// ===== COMPLETELY FIXED Bill Sync Function =====
 async function syncRelevantBills() {
   let syncRecord;
   
@@ -406,7 +392,6 @@ async function syncRelevantBills() {
     let totalAdded = 0;
     let totalUpdated = 0;
 
-    // Process keywords in smaller batches for frequent sync
     const keywordBatches = [];
     for (let i = 0; i < TRACKING_KEYWORDS.length; i += 2) {
       keywordBatches.push(TRACKING_KEYWORDS.slice(i, i + 2));
@@ -420,7 +405,6 @@ async function syncRelevantBills() {
           const currentYear = new Date().getFullYear();
           const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
           
-          // FIX: Ensure searchResults is always an array
           const validResults = Array.isArray(searchResults) ? searchResults : [];
           
           if (validResults.length === 0) {
@@ -431,10 +415,8 @@ async function syncRelevantBills() {
           totalFound += validResults.length;
           console.log(`   Found ${validResults.length} bills for "${keyword}"`);
 
-          // Process top 2 most relevant bills per keyword (faster sync)
           for (const result of validResults.slice(0, 2)) {
             try {
-              // FIX: Validate result object before processing
               if (!result || !result.bill_id) {
                 console.log('   Skipping invalid result');
                 continue;
@@ -451,7 +433,6 @@ async function syncRelevantBills() {
                 billDetails.description || ''
               );
 
-              // Only process bills with relevance score >= 1
               if (relevanceAnalysis.relevanceScore < 1) {
                 console.log(`   Low relevance score for bill ${result.bill_id}`);
                 continue;
@@ -466,7 +447,7 @@ async function syncRelevantBills() {
               if (existingBill) {
                 await existingBill.update({
                   ...formattedBill,
-                  createdAt: existingBill.createdAt // Preserve original creation date
+                  createdAt: existingBill.createdAt
                 });
                 totalUpdated++;
                 console.log(`   ✅ Updated: ${formattedBill.billNumber}`);
@@ -485,11 +466,9 @@ async function syncRelevantBills() {
         }
       }
       
-      // Shorter pause between keyword batches for frequent sync
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    // FIX: Ensure we're not passing NaN values to the database
     const safeTotal = isNaN(totalFound) ? 0 : totalFound;
     const safeAdded = isNaN(totalAdded) ? 0 : totalAdded;
     const safeUpdated = isNaN(totalUpdated) ? 0 : totalUpdated;
@@ -562,12 +541,10 @@ const authenticateToken = async (req, res, next) => {
 
 // ===== API ROUTES =====
 
-// Root route
 app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
 
-// API info route
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'Legislative Tracker API with LegiScan Integration', 
@@ -600,10 +577,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Auth routes
+// FIXED Auth routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, organization } = req.body;
+
+    if (!email || !password || !firstName || !lastName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -633,7 +614,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Registration failed', details: error.message });
   }
 });
 
@@ -641,13 +622,21 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    console.log(`🔐 Login attempt for: ${email}`);
+
     const user = await User.findOne({ where: { email } });
     if (!user) {
+      console.log(`❌ User not found: ${email}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
+      console.log(`❌ Invalid password for: ${email}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -655,6 +644,7 @@ app.post('/api/auth/login', async (req, res) => {
       const message = user.status === 'pending' 
         ? 'Account pending admin approval' 
         : 'Account suspended';
+      console.log(`❌ Account not approved: ${email} - ${user.status}`);
       return res.status(403).json({ error: message });
     }
 
@@ -663,6 +653,8 @@ app.post('/api/auth/login', async (req, res) => {
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '24h' }
     );
+
+    console.log(`✅ Login successful for: ${email}`);
 
     res.json({
       message: 'Login successful',
@@ -679,7 +671,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Login failed', details: error.message });
   }
 });
 
@@ -687,24 +679,16 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });
 
-// Enhanced Bills routes with search and filtering
+// Bills routes
 app.get('/api/bills', authenticateToken, async (req, res) => {
   try {
     const { 
-      search, 
-      state, 
-      status, 
-      minRelevance = 0, 
-      page = 1, 
-      limit = 20,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC',
-      source = 'all'
+      search, state, status, minRelevance = 0, page = 1, limit = 20,
+      sortBy = 'createdAt', sortOrder = 'DESC', source = 'all'
     } = req.query;
 
     const where = { isActive: true };
     
-    // Search filter
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
@@ -714,22 +698,18 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       ];
     }
 
-    // State filter
     if (state && state !== 'ALL') {
       where.stateCode = state;
     }
 
-    // Status filter
     if (status && status !== 'all') {
       where.status = { [Op.iLike]: `%${status}%` };
     }
 
-    // Relevance filter
     if (minRelevance > 0) {
       where.relevanceScore = { [Op.gte]: parseInt(minRelevance) };
     }
 
-    // Source filter
     if (source !== 'all') {
       where.sourceType = source;
     }
@@ -760,7 +740,7 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching bills:', error);
-    res.status(500).json({ error: 'Failed to fetch bills' });
+    res.status(500).json({ error: 'Failed to fetch bills', details: error.message });
   }
 });
 
@@ -857,7 +837,6 @@ app.post('/api/admin/users/:id/approve', authenticateToken, async (req, res) => 
   }
 });
 
-// LegiScan Integration Admin Routes
 app.post('/api/admin/sync-bills', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -866,7 +845,6 @@ app.post('/api/admin/sync-bills', authenticateToken, async (req, res) => {
 
     console.log(`🔄 Manual sync triggered by ${req.user.email}`);
     
-    // Don't wait for sync to complete - return immediately
     syncRelevantBills().catch(error => {
       console.error('Background sync failed:', error);
     });
@@ -894,15 +872,6 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
 
     const totalBills = await Bill.count();
     const legiscanBills = await Bill.count({ where: { legiscanId: { [Op.ne]: null } } });
-    const recentBills = await Bill.findAll({
-      where: {
-        lastSynced: {
-          [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-        }
-      },
-      order: [['lastSynced', 'DESC']],
-      limit: 5
-    });
 
     res.json({
       apiStatus: 'active',
@@ -912,14 +881,6 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
       recentSyncs: recentSyncs.length,
       lastSync: recentSyncs[0]?.endTime || null,
       currentlyRunning: recentSyncs.some(sync => sync.status === 'running'),
-      recentBills: recentBills.map(bill => ({
-        id: bill.id,
-        billNumber: bill.billNumber,
-        title: bill.title.substring(0, 60) + '...',
-        state: bill.stateCode,
-        relevanceScore: bill.relevanceScore,
-        lastSynced: bill.lastSynced
-      })),
       syncHistory: recentSyncs.map(sync => ({
         id: sync.id,
         type: sync.syncType,
@@ -937,7 +898,7 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
   }
 });
 
-// Dashboard route
+// Frontend routes
 app.get('/dashboard', (req, res) => {
   const frontendPath = path.join(__dirname, 'frontend.html');
   if (require('fs').existsSync(frontendPath)) {
@@ -947,12 +908,10 @@ app.get('/dashboard', (req, res) => {
   }
 });
 
-// Serve static files (if frontend exists)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/build')));
 }
 
-// Catch-all handler
 app.get('*', (req, res) => {
   const frontendPath = path.join(__dirname, 'frontend.html');
   if (require('fs').existsSync(frontendPath)) {
@@ -962,7 +921,7 @@ app.get('*', (req, res) => {
   }
 });
 
-// ===== Server Startup =====
+// Server startup
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
@@ -975,7 +934,6 @@ async function startServer() {
     await sequelize.sync({ force: false });
     console.log('✅ Database synced');
 
-    // Create admin user
     const adminPassword = await bcrypt.hash('admin123', 12);
     const [admin] = await User.findOrCreate({
       where: { email: 'admin@example.com' },
@@ -989,7 +947,6 @@ async function startServer() {
       }
     });
 
-    // Create sample bills if none exist from LegiScan
     const existingBills = await Bill.count();
     if (existingBills === 0) {
       const sampleBills = [
@@ -1032,7 +989,6 @@ async function startServer() {
 
     console.log('👤 Admin login: admin@example.com / admin123');
     
-    // Start server first
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📡 API available at: http://localhost:${PORT}/api`);
@@ -1041,7 +997,6 @@ async function startServer() {
       console.log(`🔧 LegiScan Status: Active - Syncing every 2 minutes`);
     });
 
-    // Schedule sync after server is running
     setTimeout(() => {
       console.log('📅 Scheduling automatic bill sync every 2 minutes...');
       cron.schedule('*/2 * * * *', async () => {
@@ -1049,12 +1004,11 @@ async function startServer() {
         await syncRelevantBills();
       });
 
-      // Run initial sync after another delay
       setTimeout(async () => {
         console.log('🚀 Running initial bill sync...');
         await syncRelevantBills();
-      }, 30000); // 30 seconds after server start
-    }, 5000); // 5 seconds delay
+      }, 30000);
+    }, 5000);
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);
