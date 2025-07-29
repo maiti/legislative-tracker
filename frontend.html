@@ -559,7 +559,7 @@
             margin: 25px 0;
             text-align: center;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             justify-content: center;
             flex-wrap: wrap;
         }
@@ -567,10 +567,10 @@
             background: linear-gradient(135deg, #e67e22, #f39c12);
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 10px 16px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             transition: all 0.2s;
             text-transform: uppercase;
@@ -680,8 +680,8 @@
                 <button id="testConnectionBtn" class="test-btn-small">Test Connection</button>
                 <button id="testAPIBtn" class="test-btn-small">Test API</button>
                 <button id="testLegiScanBtn" class="test-btn-small">Test LegiScan</button>
-                <button id="directApiTestBtn" class="test-btn-small">Direct API Test</button>
-                <button id="simpleApiTestBtn" class="test-btn-small">Simple API Test</button>
+                <button id="directApiTestBtn" class="test-btn-small">Direct API</button>
+                <button id="simpleApiTestBtn" class="test-btn-small">Simple API</button>
                 <button id="addTestBillBtn" class="test-btn-small">Add Test Bill</button>
             </div>
             
@@ -696,7 +696,7 @@
             <button id="loginBtn" class="login-btn">Sign In</button>
             
             <div class="demo-creds">
-                <strong>Enhanced Version 3.1.0</strong><br>
+                <strong>Enhanced Version 3.1.0 Fixed</strong><br>
                 Demo Credentials:<br>
                 Email: admin@example.com<br>
                 Password: admin123
@@ -833,7 +833,7 @@
     </div>
 
     <script>
-        // Global state
+        // Global state variables
         let currentUser = null;
         let authToken = null;
         let debugLog = [];
@@ -843,6 +843,7 @@
         let billsPerPage = 10;
         let enhancedMode = true;
 
+        // Debug logging function
         function addDebug(message) {
             const timestamp = new Date().toLocaleTimeString();
             const logMessage = `${timestamp}: ${message}`;
@@ -859,6 +860,7 @@
             console.log('DEBUG:', logMessage);
         }
 
+        // Clear authentication data
         function clearAuthData() {
             try {
                 localStorage.removeItem('accessToken');
@@ -871,6 +873,7 @@
             addDebug('Auth data cleared');
         }
 
+        // Show login screen
         function showLogin() {
             const loginOverlay = document.getElementById('loginOverlay');
             const mainContainer = document.getElementById('mainContainer');
@@ -879,6 +882,7 @@
             addDebug('Login screen shown');
         }
 
+        // Show main interface
         function showMainInterface() {
             addDebug('Showing enhanced main interface');
             const loginOverlay = document.getElementById('loginOverlay');
@@ -898,6 +902,7 @@
             }
         }
 
+        // Show messages to user
         function showMessage(message, isError = true) {
             const errorDiv = document.getElementById('errorMessage');
             const successDiv = document.getElementById('successMessage');
@@ -927,6 +932,7 @@
             addDebug(`Message shown (${isError ? 'error' : 'success'}): ${message}`);
         }
 
+        // Test basic connection
         async function testConnection() {
             addDebug('Testing basic connection...');
             try {
@@ -939,13 +945,14 @@
                 
                 const data = await response.json();
                 addDebug(`Health check data: ${JSON.stringify(data)}`);
-                showMessage(`✅ Connection OK: ${data.status} (Enhanced ${data.version || 'v3.1.0'})`, false);
+                showMessage(`✅ Connection OK: ${data.status} (Version: ${data.version || 'v3.1.0'})`, false);
             } catch (error) {
                 addDebug(`Connection failed: ${error.message}`);
                 showMessage(`❌ Connection Error: ${error.message}`, true);
             }
         }
 
+        // Test API endpoint
         async function testAPICall() {
             addDebug('Testing enhanced API endpoint...');
             try {
@@ -965,6 +972,7 @@
             }
         }
 
+        // Test LegiScan API
         async function testLegiScanAPI() {
             if (!authToken) {
                 showMessage('❌ Please login first to test LegiScan API', true);
@@ -997,7 +1005,7 @@
                 
                 if (data.success) {
                     const results = data.testResults;
-                    let statusMessage = `✅ FIXED LegiScan Working! `;
+                    let statusMessage = `✅ LegiScan Working! `;
                     
                     if (results.connectivity) statusMessage += `Connectivity ✅ `;
                     if (results.searchTest) statusMessage += `Search ✅ `;
@@ -1019,6 +1027,7 @@
             }
         }
 
+        // Direct LegiScan API test
         async function directLegiScanTest() {
             if (!currentUser || currentUser.role !== 'admin') {
                 showMessage('Admin access required for direct API test', true);
@@ -1037,21 +1046,19 @@
                 const data = await response.json();
                 addDebug(`Direct API test completed: ${JSON.stringify(data.summary)}`);
                 
-                if (data.summary.overallStatus === 'WORKING') {
+                if (data.summary && data.summary.overallStatus === 'WORKING') {
                     let message = `✅ DIRECT API TEST PASSED! `;
-                    message += `${data.summary.passed}/${data.summary.totalTests} tests passed. `;
-                    message += `API Key: ${data.summary.apiKey}`;
+                    message += `${data.summary.passed}/${data.summary.totalTests} tests passed.`;
                     
                     showMessage(message, false);
                     updateAPIStatus('connected');
-                    
-                    // Show detailed results
                     console.log('📊 Detailed Test Results:', data.testResults);
                     
                 } else {
-                    let message = `❌ DIRECT API TEST FAILED! `;
-                    message += `${data.summary.failed}/${data.summary.totalTests} tests failed. `;
-                    message += `Recommendations: ${data.summary.recommendations.join(', ')}`;
+                    let message = `❌ DIRECT API TEST FAILED!`;
+                    if (data.summary) {
+                        message += ` ${data.summary.failed}/${data.summary.totalTests} tests failed.`;
+                    }
                     
                     showMessage(message, true);
                     updateAPIStatus('failed');
@@ -1064,6 +1071,7 @@
             }
         }
 
+        // Simple LegiScan API test
         async function simpleLegiScanTest() {
             if (!currentUser || currentUser.role !== 'admin') {
                 showMessage('Admin access required for simple API test', true);
@@ -1092,6 +1100,37 @@
             }
         }
 
+        // Add test bill
+        async function addTestBill() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required to add test bill', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/add-test-bill', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                showMessage(`✅ Test bill created: ${data.bill.billNumber}`, false);
+                
+                // Refresh the bills list
+                setTimeout(() => {
+                    loadEnhancedBills();
+                }, 2000);
+                
+            } catch (error) {
+                showMessage(`❌ Failed to create test bill: ${error.message}`, true);
+            }
+        }
+
+        // Update API status indicator
         function updateAPIStatus(status) {
             const apiStatusElement = document.getElementById('apiStatus');
             if (apiStatusElement) {
@@ -1115,6 +1154,7 @@
             }
         }
 
+        // Perform login
         async function performLogin() {
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
@@ -1128,7 +1168,7 @@
             const email = emailInput.value;
             const password = passwordInput.value;
             
-            addDebug(`ENHANCED LOGIN for: ${email}`);
+            addDebug(`LOGIN attempt for: ${email}`);
 
             if (!email || !password) {
                 addDebug('Missing credentials');
@@ -1140,38 +1180,26 @@
             loginBtn.textContent = 'Signing In...';
 
             try {
-                addDebug('Creating enhanced login request...');
+                addDebug('Creating login request...');
                 
-                const loginData = { email, password };
-                const requestOptions = {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify(loginData)
-                };
+                    body: JSON.stringify({ email, password })
+                });
                 
-                addDebug('Sending request to enhanced /api/auth/login...');
-                const response = await fetch('/api/auth/login', requestOptions);
+                addDebug(`Login response status: ${response.status}`);
                 
-                addDebug(`Enhanced response status: ${response.status}`);
-                
-                const responseText = await response.text();
-                addDebug(`Enhanced response length: ${responseText.length} chars`);
-
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
 
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                    addDebug('Enhanced response parsed successfully as JSON');
-                } catch (parseError) {
-                    addDebug(`JSON parse error: ${parseError.message}`);
-                    throw new Error('Server returned invalid JSON');
-                }
+                const data = await response.json();
+                addDebug('Login response parsed successfully');
 
                 if (data.accessToken) {
                     try {
@@ -1183,16 +1211,16 @@
                     
                     currentUser = data.user;
                     authToken = data.accessToken;
-                    addDebug('Enhanced login successful, showing main interface');
+                    addDebug('Login successful, showing main interface');
                     showMainInterface();
                     loadEnhancedDashboard();
                 } else {
-                    addDebug('No token in enhanced response');
+                    addDebug('No token in response');
                     showMessage(data.error || 'Login failed - no token received', true);
                 }
 
             } catch (error) {
-                addDebug(`ENHANCED LOGIN ERROR: ${error.message}`);
+                addDebug(`LOGIN ERROR: ${error.message}`);
                 showMessage(`Login failed: ${error.message}`, true);
             } finally {
                 loginBtn.disabled = false;
@@ -1200,12 +1228,14 @@
             }
         }
 
+        // Logout function
         function logout() {
             addDebug('Logging out from enhanced system');
             clearAuthData();
             showLogin();
         }
 
+        // Load enhanced dashboard
         async function loadEnhancedDashboard() {
             addDebug('Loading enhanced dashboard...');
             await Promise.all([
@@ -1214,6 +1244,7 @@
             ]);
         }
 
+        // Load enhanced bills
         async function loadEnhancedBills() {
             addDebug('Loading enhanced bills with LegiScan integration...');
             
@@ -1256,7 +1287,6 @@
                 
                 const data = await response.json();
                 addDebug(`Enhanced bills data received: ${data.bills ? data.bills.length : 0} bills`);
-                addDebug(`Enhanced features: ${data.enhanced ? 'Active' : 'Not available'}`);
                 
                 allBills = data.bills || [];
                 updateEnhancedStats(data.stats || {});
@@ -1281,6 +1311,7 @@
             }
         }
 
+        // Update enhanced statistics
         function updateEnhancedStats(stats) {
             const totalBillsCount = document.getElementById('totalBillsCount');
             const legiscanBillsCount = document.getElementById('legiscanBillsCount');
@@ -1295,9 +1326,10 @@
                 const highRelevance = stats.highRelevanceBills || allBills.filter(bill => (bill.relevanceScore || 0) >= 5).length;
                 relevantBillsCount.textContent = highRelevance;
             }
-            if (keywordsCount) keywordsCount.textContent = '40+'; // Based on enhanced keywords
+            if (keywordsCount) keywordsCount.textContent = '40+';
         }
 
+        // Filter and display enhanced bills
         function filterAndDisplayEnhancedBills() {
             const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
             const stateFilter = document.getElementById('stateFilter')?.value || 'all';
@@ -1314,16 +1346,12 @@
                     (bill.sponsors && bill.sponsors.toLowerCase().includes(searchTerm));
                 
                 const matchesState = stateFilter === 'all' || bill.stateCode === stateFilter;
-                
-                const matchesStatus = statusFilter === 'all' || 
-                    (bill.status && bill.status.toLowerCase().includes(statusFilter));
-                
+                const matchesStatus = statusFilter === 'all' || (bill.status && bill.status.toLowerCase().includes(statusFilter));
                 const matchesSource = sourceFilter === 'all' || bill.sourceType === sourceFilter;
                 
                 return matchesSearch && matchesState && matchesStatus && matchesSource;
             });
             
-            // Enhanced sorting
             const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
             const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
             
@@ -1347,57 +1375,7 @@
             displayEnhancedBills();
         }
 
-        function generateEnhancedBillSummary(bill) {
-            const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
-            const relevanceScore = bill.relevanceScore || 0;
-            const hasTraining = bill.keywords && (bill.keywords.toLowerCase().includes('training') || bill.keywords.toLowerCase().includes('education'));
-            const hasFunding = bill.fundsAllocated && bill.fundsAllocated !== 'Not specified';
-            const hasLawEnforcement = bill.keywords && bill.keywords.toLowerCase().includes('law enforcement');
-            
-            let relevanceText = '';
-            let summaryText = '';
-            
-            if (relevanceScore >= 8) {
-                relevanceText = 'Very High Relevance';
-            } else if (relevanceScore >= 6) {
-                relevanceText = 'High Relevance';
-            } else if (relevanceScore >= 4) {
-                relevanceText = 'Medium Relevance';
-            } else {
-                relevanceText = 'Low Relevance';
-            }
-            
-            if (keywords.length > 0) {
-                const keywordText = keywords.slice(0, 4).join(', ');
-                summaryText = `This ${bill.sourceType === 'legiscan' ? 'LegiScan-sourced' : 'manually added'} bill addresses ${keywordText.toLowerCase()} and has ${relevanceText.toLowerCase()} to law enforcement training and financial crime prevention initiatives.`;
-                
-                if (hasFunding) {
-                    summaryText += ` Funding details: ${bill.fundsAllocated}.`;
-                }
-                
-                if (hasTraining && hasLawEnforcement) {
-                    summaryText += ' This bill specifically targets law enforcement training enhancement.';
-                } else if (hasTraining) {
-                    summaryText += ' This bill includes training and educational components.';
-                }
-                
-                if (bill.progressPercentage > 70) {
-                    summaryText += ' This bill has made significant legislative progress and may be enacted soon.';
-                } else if (bill.progressPercentage > 30) {
-                    summaryText += ' This bill is actively progressing through the legislative process.';
-                } else if (bill.progressPercentage > 0) {
-                    summaryText += ' This bill is in early legislative stages.';
-                }
-            } else {
-                summaryText = `This ${bill.sourceType === 'legiscan' ? 'LegiScan-tracked' : 'manually added'} bill has ${relevanceText.toLowerCase()} to our monitoring criteria and may contain provisions related to law enforcement training or financial crime prevention.`;
-            }
-            
-            return {
-                relevance: relevanceText,
-                summary: summaryText
-            };
-        }
-
+        // Display enhanced bills
         function displayEnhancedBills() {
             const loadingIndicator = document.getElementById('loadingIndicator');
             const billsContainer = document.getElementById('billsContainer');
@@ -1446,13 +1424,8 @@
                     }
                     
                     const relevanceTag = `<span class="relevance-score ${relevanceClass}">${relevanceText}: ${relevanceScore}/10</span>`;
-                    
                     const progressPercentage = bill.progressPercentage || 0;
                     
-                    // Generate enhanced bill summary
-                    const summary = generateEnhancedBillSummary(bill);
-                    
-                    // Enhanced metadata
                     const introducedDate = bill.introducedDate ? new Date(bill.introducedDate).toLocaleDateString() : 'Unknown';
                     const lastSynced = bill.lastSynced ? new Date(bill.lastSynced).toLocaleDateString() : 'Never';
                     const chamber = bill.chamber || 'Unknown';
@@ -1468,18 +1441,13 @@
                         </div>
                         <h3 class="bill-title">${bill.title || 'No title available'}</h3>
                         
-                        <div class="bill-summary">
-                            <h4>Enhanced Summary & Relevance Analysis</h4>
-                            <p>${summary.summary}</p>
-                        </div>
-                        
                         <div class="bill-meta">
                             <div class="meta-item">
                                 <span>📊 Status:</span>
                                 <span class="bill-status">${bill.status || 'Unknown'}</span>
                             </div>
                             <div class="meta-item">
-                                <span>🏛️  Chamber:</span>
+                                <span>🏛️ Chamber:</span>
                                 <span>${chamber}</span>
                             </div>
                             <div class="meta-item">
@@ -1522,45 +1490,242 @@
                 });
             }
             
-            updatePagination();
             addDebug(`Displayed ${billsToShow.length} enhanced bills (page ${currentPage})`);
         }
 
-        function updatePagination() {
-            const pagination = document.getElementById('pagination');
-            if (!pagination) return;
+        // Load enhanced sync status
+        async function loadEnhancedSyncStatus() {
+            addDebug('Loading enhanced sync status...');
+            const statusText = document.getElementById('statusText');
             
-            const totalPages = Math.ceil(filteredBills.length / billsPerPage);
-            
-            if (totalPages <= 1) {
-                pagination.style.display = 'none';
+            if (!currentUser || currentUser.role !== 'admin') {
+                if (statusText) {
+                    statusText.innerHTML = '📊 Enhanced bills loaded from database • Ready to search and filter';
+                }
+                updateAPIStatus('unknown');
                 return;
             }
             
-            pagination.style.display = 'flex';
-            pagination.innerHTML = '';
-            
-            // Previous button
-            const prevBtn = document.createElement('button');
-            prevBtn.className = 'page-btn';
-            prevBtn.textContent = '← Previous';
-            prevBtn.disabled = currentPage === 1;
-            prevBtn.addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    displayEnhancedBills();
+            try {
+                const response = await fetch('/api/admin/sync-status-enhanced', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                addDebug(`Enhanced sync status loaded: ${data.totalBills} total bills`);
+                
+                if (statusText) {
+                    const lastSync = data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
+                    const isRunning = data.currentlyRunning ? ' • 🔄 Enhanced sync in progress' : '';
+                    
+                    statusText.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • ⭐ High Relevance: ${data.highRelevanceBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
                 }
-            });
-            pagination.appendChild(prevBtn);
+                
+                updateAPIStatus(data.apiKey === 'configured' ? 'connected' : 'failed');
+                
+            } catch (error) {
+                addDebug(`Error loading enhanced sync status: ${error.message}`);
+                if (statusText) {
+                    statusText.innerHTML = '⚠️ Enhanced sync status unavailable • System operational';
+                }
+                updateAPIStatus('failed');
+            }
+        }
+
+        // Sync enhanced LegiScan
+        async function syncEnhancedLegiScan() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required for enhanced sync', true);
+                return;
+            }
             
-            // Page numbers
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-                    const pageBtn = document.createElement('button');
-                    pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
-                    pageBtn.textContent = i;
-                    pageBtn.addEventListener('click', () => {
-                        currentPage = i;
-                        displayEnhancedBills();
-                    });
-                }}}
+            const syncBtn = document.getElementById('syncBtn');
+            if (!syncBtn) return;
+            
+            addDebug('Starting FIXED LegiScan sync...');
+            
+            syncBtn.disabled = true;
+            syncBtn.textContent = 'Fixed Syncing...';
+            
+            try {
+                const response = await fetch('/api/admin/sync-bills-fixed', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                addDebug(`FIXED sync initiated: ${data.message}`);
+                showMessage('🚀 FIXED LegiScan sync started! Using multiple search strategies. New bills should appear within 10-15 minutes.', false);
+                
+                const statusText = document.getElementById('statusText');
+                if (statusText) {
+                    statusText.innerHTML = '🔄 FIXED LegiScan sync in progress • Multiple strategies active';
+                }
+                
+                setTimeout(() => {
+                    loadEnhancedDashboard();
+                }, 20000);
+                
+            } catch (error) {
+                addDebug(`FIXED sync error: ${error.message}`);
+                showMessage(`FIXED sync failed: ${error.message}`, true);
+            } finally {
+                setTimeout(() => {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = 'FIXED Sync';
+                }, 15000);
+            }
+        }
+
+        // Initialize enhanced app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            addDebug('DOM loaded, setting up ENHANCED app...');
+            
+            clearAuthData();
+            showLogin();
+            
+            // Set up ALL event listeners
+            const testConnectionBtn = document.getElementById('testConnectionBtn');
+            const testAPIBtn = document.getElementById('testAPIBtn');
+            const testLegiScanBtn = document.getElementById('testLegiScanBtn');
+            const testLegiScanMainBtn = document.getElementById('testLegiScanMainBtn');
+            const directApiTestBtn = document.getElementById('directApiTestBtn');
+            const simpleApiTestBtn = document.getElementById('simpleApiTestBtn');
+            const addTestBillBtn = document.getElementById('addTestBillBtn');
+            const addTestBillMainBtn = document.getElementById('addTestBillMainBtn');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const passwordInput = document.getElementById('password');
+            const searchBtn = document.getElementById('searchBtn');
+            const syncBtn = document.getElementById('syncBtn');
+            const searchInput = document.getElementById('searchInput');
+            const stateFilter = document.getElementById('stateFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
+            const sortSelect = document.getElementById('sortSelect');
+            const sortOrderSelect = document.getElementById('sortOrderSelect');
+            
+            // Add all event listeners with error checking
+            if (testConnectionBtn) {
+                testConnectionBtn.addEventListener('click', testConnection);
+                addDebug('Test connection button listener added');
+            }
+            
+            if (testAPIBtn) {
+                testAPIBtn.addEventListener('click', testAPICall);
+                addDebug('Test API button listener added');
+            }
+            
+            if (testLegiScanBtn) {
+                testLegiScanBtn.addEventListener('click', testLegiScanAPI);
+                addDebug('Test LegiScan button listener added');
+            }
+            
+            if (testLegiScanMainBtn) {
+                testLegiScanMainBtn.addEventListener('click', testLegiScanAPI);
+                addDebug('Main test LegiScan button listener added');
+            }
+            
+            if (directApiTestBtn) {
+                directApiTestBtn.addEventListener('click', directLegiScanTest);
+                addDebug('Direct API test button listener added');
+            }
+            
+            if (simpleApiTestBtn) {
+                simpleApiTestBtn.addEventListener('click', simpleLegiScanTest);
+                addDebug('Simple API test button listener added');
+            }
+            
+            if (addTestBillBtn) {
+                addTestBillBtn.addEventListener('click', addTestBill);
+                addDebug('Add test bill button listener added');
+            }
+            
+            if (addTestBillMainBtn) {
+                addTestBillMainBtn.addEventListener('click', addTestBill);
+                addDebug('Main add test bill button listener added');
+            }
+            
+            if (loginBtn) {
+                loginBtn.addEventListener('click', performLogin);
+                addDebug('Login button listener added');
+            }
+            
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+                addDebug('Logout button listener added');
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        performLogin();
+                    }
+                });
+                addDebug('Password enter key listener added');
+            }
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', filterAndDisplayEnhancedBills);
+                addDebug('Search button listener added');
+            }
+            
+            if (syncBtn) {
+                syncBtn.addEventListener('click', syncEnhancedLegiScan);
+                addDebug('Sync button listener added');
+            }
+            
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        filterAndDisplayEnhancedBills();
+                    }
+                });
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(this.searchTimeout);
+                    this.searchTimeout = setTimeout(filterAndDisplayEnhancedBills, 500);
+                });
+                addDebug('Search input listeners added');
+            }
+            
+            if (stateFilter) {
+                stateFilter.addEventListener('change', filterAndDisplayEnhancedBills);
+                addDebug('State filter listener added');
+            }
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterAndDisplayEnhancedBills);
+                addDebug('Status filter listener added');
+            }
+            
+            if (sourceFilter) {
+                sourceFilter.addEventListener('change', filterAndDisplayEnhancedBills);
+                addDebug('Source filter listener added');
+            }
+            
+            if (sortSelect) {
+                sortSelect.addEventListener('change', loadEnhancedBills);
+                addDebug('Sort select listener added');
+            }
+            
+            if (sortOrderSelect) {
+                sortOrderSelect.addEventListener('change', loadEnhancedBills);
+                addDebug('Sort order select listener added');
+            }
+            
+            addDebug('All event listeners set up successfully');
+            
+            // Test connection automatically after a short delay
+            setTimeout(() => {
+                addDebug('Running automatic connection test...');
+                testConnection();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
