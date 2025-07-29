@@ -260,7 +260,12 @@ class LegiScanService {
         year: currentYear
       });
       
-      return data.searchresult || [];
+      // NEW CODE - PREDICTABLE
+if (Array.isArray(data.searchresult)) {
+  return data.searchresult; // ✅ Return array
+} else {
+  return []; // ✅ Always return array
+}
     } catch (error) {
       console.error(`Error searching for "${keyword}":`, error.message);
       return [];
@@ -403,15 +408,10 @@ async function syncRelevantBills() {
           console.log(`🔍 Searching for: "${keyword}"`);
           
           const currentYear = new Date().getFullYear();
-          const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
-          
-          if (searchResults.length === 0) continue;
-
-          totalFound += searchResults.length;
-          console.log(`   Found ${searchResults.length} bills for "${keyword}"`);
-
-          // Process top 2 most relevant bills per keyword (faster sync)
-          for (const result of searchResults.slice(0, 2)) {
+          // NEW CODE - SAFE
+const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
+const validResults = Array.isArray(searchResults) ? searchResults : []; // ✅ SAFE
+for (const result of validResults.slice(0, 2)) { // ✅ WORKS
             try {
               const billDetails = await legiScan.getBillDetails(result.bill_id);
               if (!billDetails) continue;
