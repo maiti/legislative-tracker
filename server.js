@@ -11,8 +11,24 @@ require('dotenv').config();
 
 const app = express();
 
-// CRITICAL: Set up middleware in correct order
-app.use(helmet());
+// CRITICAL: Configure CSP properly BEFORE other middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
 app.use(cors());
 app.use(express.json());
 
@@ -1018,6 +1034,7 @@ async function startServer() {
     }
 
     console.log('👤 Admin login: admin@example.com / admin123');
+    console.log('🔒 CSP configured to allow inline scripts');
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
