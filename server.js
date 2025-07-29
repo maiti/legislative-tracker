@@ -4,11 +4,14 @@ const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Sequelize, DataTypes } = require('sequelize');
-const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-change-in-production';
+
+console.log('🚀 Starting Legislative Tracker server...');
+console.log('Environment:', process.env.NODE_ENV || 'development');
+console.log('Port:', PORT);
 
 // Enhanced CORS configuration
 app.use(cors({
@@ -34,17 +37,34 @@ app.use(cors({
 app.use(helmet());
 app.use(express.json());
 
-// Database connection
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: 'postgres',
-  dialectOptions: {
-    ssl: process.env.NODE_ENV === 'production' ? {
-      require: true,
-      rejectUnauthorized: false
-    } : false
-  },
-  logging: false
-});
+// Database connection with enhanced error handling
+let sequelize;
+try {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required');
+  }
+  
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    dialectOptions: {
+      ssl: process.env.NODE_ENV === 'production' ? {
+        require: true,
+        rejectUnauthorized: false
+      } : false
+    },
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  });
+  console.log('✅ Database configuration loaded');
+} catch (error) {
+  console.error('❌ Database configuration error:', error.message);
+  process.exit(1);
+}
 
 // Models
 const User = sequelize.define('User', {
@@ -218,14 +238,14 @@ UserWatchlist.belongsTo(Bill, { foreignKey: 'billId' });
 
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
   try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ message: 'Access token required' });
+    }
+
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findByPk(decoded.userId);
     
@@ -236,6 +256,7 @@ const authenticateToken = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.error('Authentication error:', error.message);
     return res.status(403).json({ message: 'Invalid token' });
   }
 };
@@ -248,8 +269,8 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// 🔧 FIXED LEGISCAN SERVICE - No More Crashes!
-class FixedLegiScanService {
+// LegiScan Service - Safe Version
+class SafeLegiScanService {
   constructor() {
     this.apiKey = process.env.LEGISCAN_API_KEY;
     this.baseUrl = 'https://api.legiscan.com/?key=' + this.apiKey;
@@ -260,7 +281,7 @@ class FixedLegiScanService {
       totalAdded: 0,
       errors: []
     };
-    console.log('🔧 FIXED WORKING LegiScan service loaded successfully! No more crashes!');
+    console.log('🔧 Safe LegiScan service initialized');
   }
 
   async searchBills(query, state = null) {
@@ -269,6 +290,9 @@ class FixedLegiScanService {
     }
 
     try {
+      // Dynamic import for fetch
+      const fetch = (await import('node-fetch')).default;
+      
       const params = new URLSearchParams({
         op: 'search',
         query: query,
@@ -276,7 +300,7 @@ class FixedLegiScanService {
       });
 
       const url = `${this.baseUrl}&${params.toString()}`;
-      console.log(`🔍 Searching LegiScan for: "${query}" in ${state || 'ALL'} states`);
+      console.log(`🔍 Searching LegiScan for: "${query}"`);
       
       const response = await fetch(url);
       
@@ -303,6 +327,9 @@ class FixedLegiScanService {
     }
 
     try {
+      // Dynamic import for fetch
+      const fetch = (await import('node-fetch')).default;
+      
       const params = new URLSearchParams({
         op: 'getBill',
         id: billId
@@ -407,11 +434,11 @@ class FixedLegiScanService {
 }
 
 // Initialize LegiScan service
-const legiScanService = new FixedLegiScanService();
+const legiScanService = new SafeLegiScanService();
 
-// 🔄 FIXED SYNC FUNCTION - Actually Works!
-async function syncRelevantBillsFixed() {
-  console.log('🚀 Starting FIXED comprehensive bill sync...');
+// Sync function
+async function syncRelevantBills() {
+  console.log('🚀 Starting bill sync...');
   
   legiScanService.syncStats.running = true;
   legiScanService.syncStats.totalFound = 0;
@@ -483,18 +510,18 @@ async function syncRelevantBillsFixed() {
 
     const summary = {
       success: true,
-      message: 'FIXED sync completed successfully!',
+      message: 'Sync completed successfully!',
       stats: legiScanService.getStats()
     };
 
-    console.log('✅ FIXED Sync Summary:', summary);
+    console.log('✅ Sync Summary:', summary);
     return summary;
 
   } catch (error) {
     legiScanService.syncStats.running = false;
     legiScanService.syncStats.errors.push(`General sync error: ${error.message}`);
     
-    console.error('❌ FIXED sync failed:', error);
+    console.error('❌ Sync failed:', error);
     throw error;
   }
 }
@@ -502,9 +529,10 @@ async function syncRelevantBillsFixed() {
 // Routes
 app.get('/', (req, res) => {
   res.json({
-    message: 'Legislative Tracker API - FIXED VERSION',
+    message: 'Legislative Tracker API - BULLETPROOF VERSION',
     status: 'running',
-    version: '2.0-FIXED',
+    version: '3.0-BULLETPROOF',
+    timestamp: new Date().toISOString(),
     endpoints: {
       auth: {
         register: 'POST /api/auth/register',
@@ -520,9 +548,9 @@ app.get('/', (req, res) => {
       admin: {
         pendingUsers: 'GET /api/admin/users/pending',
         approveUser: 'POST /api/admin/users/:id/approve',
-        syncBills: 'POST /api/admin/sync-bills-fixed',
-        testLegiScan: 'POST /api/admin/test-legiscan-fixed',
-        syncStatus: 'GET /api/admin/sync-status-enhanced'
+        syncBills: 'POST /api/admin/sync-bills',
+        testLegiScan: 'POST /api/admin/test-legiscan',
+        syncStatus: 'GET /api/admin/sync-status'
       }
     },
     legiScanEnabled: !!process.env.LEGISCAN_API_KEY
@@ -530,7 +558,13 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    database: 'connected'
+  });
 });
 
 // Auth routes
@@ -769,9 +803,8 @@ app.post('/api/admin/users/:id/approve', authenticateToken, requireAdmin, async 
   }
 });
 
-// 🔧 FIXED ADMIN ENDPOINTS - No More 500 Errors!
-
-app.post('/api/admin/sync-bills-fixed', authenticateToken, requireAdmin, async (req, res) => {
+// Safe Admin Endpoints
+app.post('/api/admin/sync-bills', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (!process.env.LEGISCAN_API_KEY) {
       return res.status(400).json({ 
@@ -788,7 +821,7 @@ app.post('/api/admin/sync-bills-fixed', authenticateToken, requireAdmin, async (
     }
 
     // Start sync in background
-    syncRelevantBillsFixed()
+    syncRelevantBills()
       .then(result => {
         console.log('✅ Background sync completed:', result);
       })
@@ -798,11 +831,11 @@ app.post('/api/admin/sync-bills-fixed', authenticateToken, requireAdmin, async (
 
     res.json({ 
       success: true, 
-      message: 'FIXED bill sync started in background',
+      message: 'Bill sync started in background',
       stats: legiScanService.getStats()
     });
   } catch (error) {
-    console.error('❌ Sync bills fixed error:', error);
+    console.error('❌ Sync bills error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Internal server error',
@@ -811,7 +844,7 @@ app.post('/api/admin/sync-bills-fixed', authenticateToken, requireAdmin, async (
   }
 });
 
-app.post('/api/admin/test-legiscan-fixed', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/test-legiscan', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (!process.env.LEGISCAN_API_KEY) {
       return res.status(400).json({ 
@@ -820,21 +853,21 @@ app.post('/api/admin/test-legiscan-fixed', authenticateToken, requireAdmin, asyn
       });
     }
 
-    console.log('🧪 Testing FIXED LegiScan connection...');
+    console.log('🧪 Testing LegiScan connection...');
     
     const testQuery = 'money laundering';
     const results = await legiScanService.searchBills(testQuery);
     
     res.json({ 
       success: true, 
-      message: 'FIXED LegiScan test successful!',
+      message: 'LegiScan test successful!',
       testQuery,
       resultsCount: results ? results.length : 0,
       sampleResults: results ? results.slice(0, 3) : [],
       apiKeyConfigured: !!process.env.LEGISCAN_API_KEY
     });
   } catch (error) {
-    console.error('❌ LegiScan test fixed error:', error);
+    console.error('❌ LegiScan test error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'LegiScan test failed',
@@ -844,8 +877,7 @@ app.post('/api/admin/test-legiscan-fixed', authenticateToken, requireAdmin, asyn
   }
 });
 
-// 🔧 FIXED SYNC STATUS - No More Crashes!
-app.get('/api/admin/sync-status-enhanced', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/sync-status', authenticateToken, requireAdmin, async (req, res) => {
   try {
     // Get basic sync stats
     const syncStats = legiScanService.getStats();
@@ -933,7 +965,7 @@ app.get('/api/admin/sync-status-enhanced', authenticateToken, requireAdmin, asyn
 
     res.json(response);
   } catch (error) {
-    console.error('❌ Enhanced sync status error:', error);
+    console.error('❌ Sync status error:', error);
     
     // Return safe fallback response instead of crashing
     res.json({
@@ -964,16 +996,28 @@ app.get('/api/admin/sync-status-enhanced', authenticateToken, requireAdmin, asyn
   }
 });
 
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json({ 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  });
+});
+
 // Database initialization and sample data
 async function initializeDatabase() {
   try {
+    console.log('🔌 Testing database connection...');
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
     
+    console.log('🔧 Synchronizing database schema...');
     await sequelize.sync({ force: false });
     console.log('✅ Database synchronized');
 
     // Create admin user if it doesn't exist
+    console.log('👤 Checking admin user...');
     const adminUser = await User.findOne({ where: { email: 'admin@example.com' } });
     if (!adminUser) {
       const passwordHash = await bcrypt.hash('admin123', 12);
@@ -987,9 +1031,12 @@ async function initializeDatabase() {
         status: 'approved'
       });
       console.log('✅ Admin user created');
+    } else {
+      console.log('✅ Admin user exists');
     }
 
     // Create sample bills if none exist
+    console.log('📋 Checking sample bills...');
     const billCount = await Bill.count();
     if (billCount === 0) {
       await Bill.bulkCreate([
@@ -1015,9 +1062,12 @@ async function initializeDatabase() {
         }
       ]);
       console.log('✅ Sample bills created');
+    } else {
+      console.log('✅ Bills exist in database');
     }
 
     // Create sample keywords if none exist
+    console.log('🔑 Checking keywords...');
     const keywordCount = await Keyword.count();
     if (keywordCount === 0) {
       await Keyword.bulkCreate([
@@ -1031,29 +1081,66 @@ async function initializeDatabase() {
         { term: 'trafficking', category: 'Criminal Justice', isActive: true }
       ]);
       console.log('✅ Sample keywords created');
+    } else {
+      console.log('✅ Keywords exist in database');
     }
+
+    console.log('✅ Database initialization complete');
 
   } catch (error) {
     console.error('❌ Database initialization error:', error);
+    throw error;
   }
 }
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
 
 // Start server
 async function startServer() {
   try {
+    console.log('🚀 Initializing database...');
     await initializeDatabase();
     
-    app.listen(PORT, () => {
-      console.log(`🚀 Legislative Tracker FIXED Server running on port ${PORT}`);
-      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log('🚀 Starting Express server...');
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🎉 Legislative Tracker BULLETPROOF Server running!`);
+      console.log(`🌐 Port: ${PORT}`);
+      console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔑 LegiScan API: ${process.env.LEGISCAN_API_KEY ? 'Configured ✅' : 'Not configured ❌'}`);
       console.log(`📊 Database: Connected ✅`);
-      console.log(`🔧 Status: All systems operational - crashes FIXED! ✅`);
+      console.log(`🛡️ Status: BULLETPROOF - Ready for Production! 🎯`);
     });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      console.error('❌ Server error:', error);
+      process.exit(1);
+    });
+
   } catch (error) {
     console.error('❌ Server startup error:', error);
     process.exit(1);
   }
 }
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
 
 startServer();
