@@ -1,7 +1,78 @@
 if (addTestBillBtn) {
                 addTestBillBtn.addEventListener('click', addTestBill);
                 addDebug('Add test bill button listener added');
+            async function directLegiScanTest() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required for direct API test', true);
+                return;
             }
+            
+            addDebug('Running DIRECT LegiScan API test...');
+            updateAPIStatus('testing');
+            
+            try {
+                const response = await fetch('/api/admin/direct-legiscan-test', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                addDebug(`Direct API test completed: ${JSON.stringify(data.summary)}`);
+                
+                if (data.summary.overallStatus === 'WORKING') {
+                    let message = `✅ DIRECT API TEST PASSED! `;
+                    message += `${data.summary.passed}/${data.summary.totalTests} tests passed. `;
+                    message += `API Key: ${data.summary.apiKey}`;
+                    
+                    showMessage(message, false);
+                    updateAPIStatus('connected');
+                    
+                    // Show detailed results
+                    console.log('📊 Detailed Test Results:', data.testResults);
+                    
+                } else {
+                    let message = `❌ DIRECT API TEST FAILED! `;
+                    message += `${data.summary.failed}/${data.summary.totalTests} tests failed. `;
+                    message += `Recommendations: ${data.summary.recommendations.join(', ')}`;
+                    
+                    showMessage(message, true);
+                    updateAPIStatus('failed');
+                }
+                
+            } catch (error) {
+                addDebug(`Direct API test failed: ${error.message}`);
+                showMessage(`❌ Direct API test error: ${error.message}`, true);
+                updateAPIStatus('failed');
+            }
+        }
+
+        async function simpleLegiScanTest() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required for simple API test', true);
+                return;
+            }
+            
+            addDebug('Running SIMPLE LegiScan API test...');
+            
+            try {
+                const response = await fetch('/api/admin/simple-legiscan-test', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                addDebug(`Simple API test: ${JSON.stringify(data)}`);
+                
+                if (data.success && data.apiResponse?.status === 'OK') {
+                    showMessage(`✅ SIMPLE API TEST PASSED! Status: ${data.apiResponse.status}`, false);
+                    console.log('📊 API Response:', data.apiResponse);
+                } else {
+                    showMessage(`❌ SIMPLE API TEST FAILED! ${data.error || 'Unknown error'}`, true);
+                }
+                
+            } catch (error) {
+                showMessage(`❌ Simple API test error: ${error.message}`, true);
+            }
+        }
             
             if (addTestBillMainBtn) {
                 addTestBillMainBtn.addEventListener('click', addTestBill);
@@ -687,6 +758,8 @@ if (addTestBillBtn) {
                 <button id="testConnectionBtn" class="test-btn-small">Test Connection</button>
                 <button id="testAPIBtn" class="test-btn-small">Test API</button>
                 <button id="testLegiScanBtn" class="test-btn-small">Test FIXED LegiScan</button>
+                <button id="directApiTestBtn" class="test-btn-small">Direct API Test</button>
+                <button id="simpleApiTestBtn" class="test-btn-small">Simple API Test</button>
                 <button id="addTestBillBtn" class="test-btn-small">Add Test Bill</button>
             </div>
             
@@ -1693,6 +1766,8 @@ if (addTestBillBtn) {
             const testAPIBtn = document.getElementById('testAPIBtn');
             const testLegiScanBtn = document.getElementById('testLegiScanBtn');
             const testLegiScanMainBtn = document.getElementById('testLegiScanMainBtn');
+            const directApiTestBtn = document.getElementById('directApiTestBtn');
+            const simpleApiTestBtn = document.getElementById('simpleApiTestBtn');
             const addTestBillBtn = document.getElementById('addTestBillBtn');
             const addTestBillMainBtn = document.getElementById('addTestBillMainBtn');
             const loginBtn = document.getElementById('loginBtn');

@@ -1861,5 +1861,128 @@ async function startFixedServer() {
     process.exit(1);
   }
 }
+// Add this to your server.js file
+app.post('/api/admin/direct-legiscan-test', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
 
+    console.log('🧪 DIRECT LegiScan API Test Starting...');
+    
+    const API_KEY = '65c8d4470aa39a31e376e82db13f1e72';
+    const testResults = [];
+    
+    // Test 1: Basic API Health Check
+    try {
+      console.log('🔗 Test 1: Basic API Health...');
+      const healthUrl = `https://api.legiscan.com/?key=${API_KEY}&op=getSessionList&state=CA`;
+      
+      const response = await axios.get(healthUrl, {
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Legislative-Tracker-Test/1.0',
+          'Accept': 'application/json'
+        }
+      });
+      
+      testResults.push({
+        test: 'Basic API Health',
+        status: response.status === 200 ? 'PASS' : 'FAIL',
+        data: response.data,
+        notes: `Status: ${response.status}, API Response: ${response.data?.status}`
+      });
+      
+    } catch (error) {
+      testResults.push({
+        test: 'Basic API Health',
+        status: 'FAIL',
+        error: error.message,
+        notes: 'API connection failed'
+      });
+    }
+    
+    // Test 2: Search Test
+    try {
+      console.log('🔍 Test 2: Simple Search...');
+      const searchUrl = `https://api.legiscan.com/?key=${API_KEY}&op=search&state=CA&query=police&year=2`;
+      
+      const searchResponse = await axios.get(searchUrl, {
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Legislative-Tracker-Test/1.0',
+          'Accept': 'application/json'
+        }
+      });
+      
+      testResults.push({
+        test: 'Simple Search',
+        status: searchResponse.status === 200 ? 'PASS' : 'FAIL',
+        data: searchResponse.data,
+        notes: `Search results: ${searchResponse.data?.searchresult ? 'Found' : 'None'}`
+      });
+      
+    } catch (error) {
+      testResults.push({
+        test: 'Simple Search',
+        status: 'FAIL',
+        error: error.message,
+        notes: 'Search request failed'
+      });
+    }
+    
+    const passCount = testResults.filter(r => r.status === 'PASS').length;
+    const failCount = testResults.filter(r => r.status === 'FAIL').length;
+    
+    const summary = {
+      apiKey: `${API_KEY.substring(0, 8)}...`,
+      totalTests: testResults.length,
+      passed: passCount,
+      failed: failCount,
+      overallStatus: passCount > 0 ? 'WORKING' : 'FAILED',
+      timestamp: new Date(),
+      recommendations: passCount === 0 ? [
+        'API key may be invalid',
+        'Check LegiScan account status',
+        'Try regenerating API key'
+      ] : ['API is working correctly']
+    };
+    
+    res.json({ summary, testResults });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Direct API test failed', 
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/admin/simple-legiscan-test', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const API_KEY = '65c8d4470aa39a31e376e82db13f1e72';
+    const testUrl = `https://api.legiscan.com/?key=${API_KEY}&op=getSessionList&state=CA`;
+    
+    const response = await axios.get(testUrl, { timeout: 15000 });
+    
+    res.json({
+      success: true,
+      status: response.status,
+      apiResponse: response.data,
+      message: response.data?.status === 'OK' ? 'API Working!' : 'API returned error',
+      timestamp: new Date()
+    });
+    
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      timestamp: new Date()
+    });
+  }
+});
 startFixedServer();
