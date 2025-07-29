@@ -1,24 +1,23 @@
-(
-echo {
-echo   "name": "legislative-tracker",
+
+ {
+   "name": "legislative-tracker",
    "version": "1.0.0",
-echo   "main": "server.js",
-echo   "scripts": {
-echo     "start": "node server.js",
-echo     "build": "echo 'Build complete'"
-echo   },
-echo   "engines": {
-echo     "node": "18.x"
-echo   },
-echo   "dependencies": {
-echo     "express": "^4.18.2",
-echo     "cors": "^2.8.5",
-echo     "helmet": "^7.0.0",
-echo     "bcryptjs": "^2.4.3",
-echo     "jsonwebtoken": "^9.0.0",
-echo     "pg": "^8.11.0",
-echo     "sequelize": "^6.32.0",
-echo     "dotenv": "^16.1.4"
-echo   }
-echo }
-)
+   "main": "server.js",
+   "scripts": {
+     "start": "node server.js",
+     "build": "echo 'Build complete'"
+   },
+   "engines": {
+     "node": "18.x"
+   },
+   "dependencies": {
+     "express": "^4.18.2",
+     "cors": "^2.8.5",
+     "helmet": "^7.0.0",
+     "bcryptjs": "^2.4.3",
+     "jsonwebtoken": "^9.0.0",
+     "pg": "^8.11.0",
+     "sequelize": "^6.32.0",
+     "dotenv": "^16.1.4"
+   }
+ }

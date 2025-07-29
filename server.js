@@ -421,13 +421,7 @@ app.use(express.static(path.join(__dirname, 'frontend/build')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
 });
-// Serve static files from the React app build directory
-app.use(express.static(path.join(__dirname, 'frontend/build')));
 
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
-});
 // Start server
 const PORT = process.env.PORT || 3001;
 
