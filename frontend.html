@@ -80,11 +80,12 @@
             padding: 20px;
             border-bottom: 1px solid #e9ecef;
         }
-        .search-bar {
+        .search-controls {
             display: flex;
             gap: 15px;
             align-items: center;
             flex-wrap: wrap;
+            margin-bottom: 15px;
         }
         .search-input {
             flex: 1;
@@ -100,6 +101,12 @@
             border-color: #3498db;
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
         }
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
         .filter-select {
             padding: 12px 16px;
             border: 2px solid #e9ecef;
@@ -107,6 +114,7 @@
             background: white;
             font-size: 14px;
             cursor: pointer;
+            min-width: 140px;
         }
         .search-btn, .sync-btn {
             padding: 12px 24px;
@@ -175,23 +183,23 @@
         }
         .bills-grid {
             display: grid;
-            gap: 20px;
+            gap: 25px;
         }
         .bill-card {
             background: white;
             border: 1px solid #e9ecef;
             border-radius: 12px;
-            padding: 24px;
+            padding: 28px;
             transition: all 0.2s;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .bill-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
         }
         .bill-header {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 16px;
         }
@@ -213,16 +221,36 @@
             font-weight: 500;
         }
         .bill-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             color: #2c3e50;
-            margin: 12px 0;
+            margin: 16px 0;
             line-height: 1.4;
+        }
+        .bill-summary {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .bill-summary h4 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .bill-summary p {
+            margin: 0;
+            color: #555;
+            font-size: 13px;
+            line-height: 1.5;
         }
         .bill-description {
             color: #555;
             line-height: 1.6;
             margin-bottom: 16px;
+            font-size: 14px;
         }
         .bill-meta {
             display: flex;
@@ -230,7 +258,7 @@
             align-items: center;
             font-size: 13px;
             color: #7f8c8d;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         .bill-status {
             background: #fff3cd;
@@ -239,29 +267,45 @@
             border-radius: 12px;
             font-weight: 500;
         }
+        .bill-progress-container {
+            margin-bottom: 16px;
+        }
+        .bill-progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .progress-percentage {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
         .bill-progress {
             width: 100%;
-            height: 8px;
+            height: 10px;
             background: #ecf0f1;
-            border-radius: 4px;
+            border-radius: 5px;
             overflow: hidden;
-            margin-bottom: 12px;
         }
         .bill-progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #3498db, #2ecc71);
             transition: width 0.3s ease;
+            border-radius: 5px;
         }
         .bill-keywords {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 12px;
+            gap: 8px;
+            margin-top: 16px;
         }
         .keyword-tag {
             background: #e8f5e8;
             color: #2e7d32;
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 500;
@@ -269,10 +313,22 @@
         .relevance-score {
             background: #ffeaa7;
             color: #e17055;
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
+        }
+        .relevance-high {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+        .relevance-medium {
+            background: #ffeaa7;
+            color: #e17055;
+        }
+        .relevance-low {
+            background: #fadbd8;
+            color: #e74c3c;
         }
         .no-bills {
             text-align: center;
@@ -445,6 +501,11 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .sort-label {
+            font-size: 13px;
+            color: #6c757d;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
@@ -516,9 +577,13 @@
         </div>
 
         <div class="controls-section">
-            <div class="search-bar">
+            <div class="search-controls">
                 <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, or keywords...">
-                
+                <button id="searchBtn" class="search-btn">Search</button>
+                <button id="syncBtn" class="sync-btn">Sync LegiScan</button>
+            </div>
+            
+            <div class="filter-controls">
                 <select id="stateFilter" class="filter-select">
                     <option value="all">All States</option>
                     <option value="US">Federal</option>
@@ -537,8 +602,19 @@
                     <option value="enacted">Enacted</option>
                 </select>
                 
-                <button id="searchBtn" class="search-btn">Search</button>
-                <button id="syncBtn" class="sync-btn">Sync LegiScan</button>
+                <span class="sort-label">Sort by:</span>
+                <select id="sortSelect" class="filter-select">
+                    <option value="relevanceScore">Relevance Score</option>
+                    <option value="progressPercentage">Progress %</option>
+                    <option value="introducedDate">Date Introduced</option>
+                    <option value="title">Bill Title</option>
+                    <option value="createdAt">Date Added</option>
+                </select>
+                
+                <select id="sortOrderSelect" class="filter-select">
+                    <option value="DESC">High to Low</option>
+                    <option value="ASC">Low to High</option>
+                </select>
             </div>
         </div>
 
@@ -827,10 +903,13 @@
             if (noBillsMessage) noBillsMessage.style.display = 'none';
 
             try {
+                const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
+                const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
+                
                 const searchParams = new URLSearchParams({
                     limit: '50',
-                    sortBy: 'relevanceScore',
-                    sortOrder: 'DESC'
+                    sortBy: sortBy,
+                    sortOrder: sortOrder
                 });
 
                 const response = await fetch(`/api/bills?${searchParams}`, {
@@ -880,7 +959,7 @@
             if (legiscanBillsCount) legiscanBillsCount.textContent = stats.legiscanBills || 0;
             if (manualBillsCount) manualBillsCount.textContent = stats.manualBills || 0;
             if (relevantBillsCount) {
-                const highRelevance = allBills.filter(bill => (bill.relevanceScore || 0) >= 3).length;
+                const highRelevance = allBills.filter(bill => (bill.relevanceScore || 0) >= 5).length;
                 relevantBillsCount.textContent = highRelevance;
             }
         }
@@ -905,8 +984,71 @@
                 return matchesSearch && matchesState && matchesStatus;
             });
             
+            // Apply sorting
+            const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
+            const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
+            
+            filteredBills.sort((a, b) => {
+                let aVal = a[sortBy] || 0;
+                let bVal = b[sortBy] || 0;
+                
+                // Handle string sorting
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = (bVal || '').toLowerCase();
+                }
+                
+                if (sortOrder === 'DESC') {
+                    return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+                } else {
+                    return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                }
+            });
+            
             currentPage = 1;
             displayBills();
+        }
+
+        function generateBillSummary(bill) {
+            const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
+            const relevanceScore = bill.relevanceScore || 0;
+            
+            let relevanceText = '';
+            let summaryText = '';
+            
+            // Determine relevance level
+            if (relevanceScore >= 7) {
+                relevanceText = 'Very High Relevance';
+            } else if (relevanceScore >= 5) {
+                relevanceText = 'High Relevance';
+            } else if (relevanceScore >= 3) {
+                relevanceText = 'Medium Relevance';
+            } else {
+                relevanceText = 'Low Relevance';
+            }
+            
+            // Generate summary based on bill content
+            if (keywords.length > 0) {
+                const keywordText = keywords.slice(0, 3).join(', ');
+                summaryText = `This bill addresses ${keywordText.toLowerCase()} and is ${relevanceText.toLowerCase()} to law enforcement training and financial crime prevention initiatives.`;
+                
+                if (bill.fundsAllocated && bill.fundsAllocated !== 'Not specified') {
+                    summaryText += ` Funding: ${bill.fundsAllocated}.`;
+                }
+                
+                if (bill.progressPercentage > 50) {
+                    summaryText += ' This bill has made significant legislative progress.';
+                } else if (bill.progressPercentage > 0) {
+                    summaryText += ' This bill is in early legislative stages.';
+                }
+            } else {
+                summaryText = `This bill is ${relevanceText.toLowerCase()} to our tracking criteria and may contain provisions related to law enforcement training or financial crime prevention.`;
+            }
+            
+            return {
+                relevance: relevanceText,
+                summary: summaryText
+            };
         }
 
         function displayBills() {
@@ -938,12 +1080,21 @@
                     billCard.className = 'bill-card';
                     
                     const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
-                    const keywordTags = keywords.slice(0, 3).map(keyword => 
+                    const keywordTags = keywords.slice(0, 4).map(keyword => 
                         `<span class="keyword-tag">${keyword}</span>`
                     ).join('');
                     
-                    const relevanceTag = bill.relevanceScore ? 
-                        `<span class="relevance-score">Relevance: ${bill.relevanceScore}</span>` : '';
+                    const relevanceScore = bill.relevanceScore || 0;
+                    let relevanceClass = 'relevance-low';
+                    if (relevanceScore >= 7) relevanceClass = 'relevance-high';
+                    else if (relevanceScore >= 4) relevanceClass = 'relevance-medium';
+                    
+                    const relevanceTag = `<span class="relevance-score ${relevanceClass}">Relevance: ${relevanceScore}</span>`;
+                    
+                    const progressPercentage = bill.progressPercentage || 0;
+                    
+                    // Generate bill summary
+                    const summary = generateBillSummary(bill);
                     
                     billCard.innerHTML = `
                         <div class="bill-header">
@@ -953,14 +1104,29 @@
                             </div>
                         </div>
                         <h3 class="bill-title">${bill.title || 'No title available'}</h3>
+                        
+                        <div class="bill-summary">
+                            <h4>Summary & Relevance</h4>
+                            <p>${summary.summary}</p>
+                        </div>
+                        
                         <div class="bill-meta">
                             <span class="bill-status">${bill.status || 'Unknown'}</span>
                             <span>Source: ${bill.sourceType || 'Unknown'}</span>
                         </div>
-                        <div class="bill-progress">
-                            <div class="bill-progress-fill" style="width: ${bill.progressPercentage || 0}%"></div>
+                        
+                        <div class="bill-progress-container">
+                            <div class="bill-progress-label">
+                                <span>Legislative Progress</span>
+                                <span class="progress-percentage">${progressPercentage}%</span>
+                            </div>
+                            <div class="bill-progress">
+                                <div class="bill-progress-fill" style="width: ${progressPercentage}%"></div>
+                            </div>
                         </div>
-                        <p class="bill-description">${(bill.description || 'No description available').substring(0, 300)}${bill.description && bill.description.length > 300 ? '...' : ''}</p>
+                        
+                        <p class="bill-description">${(bill.description || 'No description available').substring(0, 200)}${bill.description && bill.description.length > 200 ? '...' : ''}</p>
+                        
                         <div class="bill-keywords">
                             ${keywordTags}
                             ${relevanceTag}
@@ -1095,12 +1261,12 @@
                 
                 const data = await response.json();
                 addDebug(`Sync initiated: ${data.message}`);
-                showMessage('LegiScan sync started in background. Check back in a few minutes.', false);
+                showMessage('LegiScan sync started in background. New bills will appear within a few minutes.', false);
                 
                 // Refresh the page after a short delay
                 setTimeout(() => {
                     loadDashboard();
-                }, 5000);
+                }, 10000);
                 
             } catch (error) {
                 addDebug(`Sync error: ${error.message}`);
@@ -1109,13 +1275,13 @@
                 setTimeout(() => {
                     syncBtn.disabled = false;
                     syncBtn.textContent = 'Sync LegiScan';
-                }, 3000);
+                }, 5000);
             }
         }
 
         // Initialize app when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            addDebug('DOM loaded, setting up app...');
+            addDebug('DOM loaded, setting up enhanced app...');
             
             clearAuthData();
             showLogin();
@@ -1131,6 +1297,8 @@
             const searchInput = document.getElementById('searchInput');
             const stateFilter = document.getElementById('stateFilter');
             const statusFilter = document.getElementById('statusFilter');
+            const sortSelect = document.getElementById('sortSelect');
+            const sortOrderSelect = document.getElementById('sortOrderSelect');
             
             if (testConnectionBtn) {
                 testConnectionBtn.addEventListener('click', testConnection);
@@ -1195,7 +1363,17 @@
                 addDebug('Status filter listener added');
             }
             
-            addDebug('All event listeners set up');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', loadBills);
+                addDebug('Sort select listener added');
+            }
+            
+            if (sortOrderSelect) {
+                sortOrderSelect.addEventListener('change', loadBills);
+                addDebug('Sort order select listener added');
+            }
+            
+            addDebug('All enhanced event listeners set up');
             
             // Test connection automatically
             setTimeout(() => {
