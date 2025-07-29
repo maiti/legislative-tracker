@@ -339,21 +339,27 @@
             font-size: 12px;
             color: #7f8c8d;
         }
+        .error-display {
+            background: #e74c3c;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <!-- Login Overlay -->
-    <div id="loginOverlay" class="login-overlay" style="display: none;">
+    <div id="loginOverlay" class="login-overlay">
         <div class="login-form">
             <h2>Legislative Tracker Login</h2>
             <div id="errorMessage" class="error-message" style="display: none;"></div>
             <div class="form-group">
                 <label for="email">Email:</label>
-                <input type="email" id="email" placeholder="Enter your email">
+                <input type="email" id="email" placeholder="Enter your email" value="admin@example.com">
             </div>
             <div class="form-group">
                 <label for="password">Password:</label>
-                <input type="password" id="password" placeholder="Enter your password">
+                <input type="password" id="password" placeholder="Enter your password" value="admin123">
             </div>
             <button id="loginBtn" class="login-btn">Sign In</button>
             <div class="demo-creds">
@@ -364,7 +370,7 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
             <div class="auth-controls">
                 <div class="user-info">
@@ -378,7 +384,7 @@
         </div>
         
         <div id="syncStatus" class="sync-status">
-            Connecting to LegiScan API...
+            Loading sync status...
         </div>
         
         <div class="keywords">
@@ -419,7 +425,7 @@
                 <option value="CO">Colorado</option>
                 <option value="CT">Connecticut</option>
             </select>
-            <button class="filter-btn" data-status="all">All</button>
+            <button class="filter-btn active" data-status="all">All</button>
             <button class="filter-btn" data-status="Introduced">Introduced</button>
             <button class="filter-btn" data-status="Committee">In Committee</button>
             <button class="filter-btn" data-status="Passed">Passed</button>
@@ -430,6 +436,12 @@
             <div id="loadingIndicator" class="loading">
                 <div class="loading-spinner"></div>
                 Loading legislative data...
+            </div>
+            
+            <div id="errorDisplay" class="error-display" style="display: none;">
+                <h3>Error Loading Data</h3>
+                <p id="errorText"></p>
+                <button onclick="loadBills()" style="background: white; color: #e74c3c; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Try Again</button>
             </div>
             
             <table id="billsTable" style="display: none;">
@@ -479,31 +491,28 @@
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
-            checkAuth();
+            // Clear any existing auth data on page load
+            clearAuthData();
+            showLogin();
             setupEventListeners();
         });
 
         // Authentication functions
-        function checkAuth() {
-            authToken = localStorage.getItem('accessToken');
-            const userData = localStorage.getItem('user');
-            
-            if (authToken && userData) {
-                currentUser = JSON.parse(userData);
-                showMainInterface();
-                loadBills();
-                loadSyncStatus();
-            } else {
-                showLogin();
-            }
+        function clearAuthData() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            currentUser = null;
+            authToken = null;
         }
 
         function showLogin() {
             document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('mainContainer').style.display = 'none';
         }
 
         function showMainInterface() {
             document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
             document.getElementById('userDisplay').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
             
             if (currentUser.role === 'admin') {
@@ -527,13 +536,19 @@
             loginBtn.textContent = 'Signing In...';
             errorDiv.style.display = 'none';
 
+            console.log('Attempting login to:', '/api/auth/login');
+
             fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Login response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('Login response data:', data);
                 if (data.accessToken) {
                     localStorage.setItem('accessToken', data.accessToken);
                     localStorage.setItem('user', JSON.stringify(data.user));
@@ -547,7 +562,8 @@
                 }
             })
             .catch(error => {
-                showError('Network error. Please try again.');
+                console.error('Login error:', error);
+                showError('Network error. Please check your connection.');
             })
             .finally(() => {
                 loginBtn.disabled = false;
@@ -556,10 +572,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('user');
-            currentUser = null;
-            authToken = null;
+            clearAuthData();
             showLogin();
         }
 
@@ -571,6 +584,14 @@
 
         // Data loading functions
         function loadBills() {
+            console.log('Loading bills...');
+            
+            if (!authToken) {
+                console.error('No auth token available');
+                showError('Authentication required');
+                return;
+            }
+
             const searchTerm = document.getElementById('searchBox').value;
             const stateFilter = document.getElementById('stateFilter').value;
             
@@ -579,11 +600,24 @@
             if (stateFilter !== 'ALL') url.searchParams.append('state', stateFilter);
             url.searchParams.append('limit', '50');
 
+            console.log('Fetching bills from:', url.toString());
+
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('errorDisplay').style.display = 'none';
+            document.getElementById('billsTable').style.display = 'none';
+
             fetch(url, {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Bills response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Bills data received:', data);
                 allBills = data.bills || [];
                 displayBills();
                 document.getElementById('loadingIndicator').style.display = 'none';
@@ -591,12 +625,17 @@
             })
             .catch(error => {
                 console.error('Error loading bills:', error);
-                document.getElementById('loadingIndicator').innerHTML = '<p>Error loading bills. Please refresh the page.</p>';
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('errorDisplay').style.display = 'block';
+                document.getElementById('errorText').textContent = error.message;
             });
         }
 
         function loadSyncStatus() {
-            if (currentUser.role !== 'admin') return;
+            if (!currentUser || currentUser.role !== 'admin') {
+                document.getElementById('syncStatus').innerHTML = '📊 Bills loaded from database';
+                return;
+            }
             
             fetch('/api/admin/sync-status', {
                 headers: { 'Authorization': `Bearer ${authToken}` }
@@ -607,6 +646,7 @@
             })
             .catch(error => {
                 console.error('Error loading sync status:', error);
+                document.getElementById('syncStatus').innerHTML = '⚠️ Sync status unavailable';
             });
         }
 
@@ -628,10 +668,19 @@
             const tbody = document.getElementById('billsTableBody');
             tbody.innerHTML = '';
 
+            console.log('Displaying bills:', allBills.length);
+
+            if (allBills.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No bills found. Try adjusting your search or wait for sync to complete.</td></tr>';
+                return;
+            }
+
             const filteredBills = allBills.filter(bill => {
                 if (currentFilter === 'all') return true;
                 return bill.status && bill.status.toLowerCase().includes(currentFilter.toLowerCase());
             });
+
+            console.log('Filtered bills:', filteredBills.length);
 
             filteredBills.forEach(bill => {
                 const row = createBillRow(bill);
@@ -659,7 +708,7 @@
             };
 
             const highlightKeywords = (text) => {
-                if (!text) return '';
+                if (!text) return 'No description available';
                 const keywords = ['financial crimes', 'money laundering', 'asset forfeiture', 'training', 'law enforcement'];
                 let highlighted = text;
                 keywords.forEach(keyword => {
@@ -680,7 +729,7 @@
                     ${bill.relevanceScore > 0 ? `<span class="relevance-score">Score: ${bill.relevanceScore}</span>` : ''}
                 </td>
                 <td><span class="${getStatusClass(bill.status)}">${bill.status || 'Unknown'}</span></td>
-                <td>${highlightKeywords(bill.description || 'No description available')}</td>
+                <td>${highlightKeywords(bill.description)}</td>
                 <td>${bill.fundsAllocated || 'Not specified'}</td>
                 <td>
                     <div class="progress-bar">
@@ -738,7 +787,7 @@
                 setTimeout(() => {
                     loadBills();
                     loadSyncStatus();
-                }, 2000);
+                }, 3000);
             })
             .catch(error => {
                 alert('Sync failed: ' + error.message);
@@ -761,17 +810,6 @@
                 timeout = setTimeout(later, wait);
             };
         }
-
-        // Auto-refresh every 2 minutes
-        setInterval(() => {
-            if (authToken && currentUser) {
-                loadSyncStatus();
-                // Optionally reload bills if no search/filter is active
-                if (!document.getElementById('searchBox').value) {
-                    loadBills();
-                }
-            }
-        }, 120000); // 2 minutes
     </script>
 </body>
 </html>
