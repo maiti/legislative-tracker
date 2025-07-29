@@ -46,7 +46,7 @@ const TRACKING_KEYWORDS = [
   'Multi-jurisdictional task forces', 'Cybercrime', 'Digital forensics'
 ];
 
-// Enhanced User Model (unchanged from your original)
+// Enhanced User Model
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.UUID,
@@ -128,7 +128,6 @@ const Bill = sequelize.define('Bill', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  // NEW FIELDS FOR LEGISCAN INTEGRATION
   keywords: {
     type: DataTypes.TEXT,
     allowNull: true
@@ -155,7 +154,7 @@ const Bill = sequelize.define('Bill', {
   }
 });
 
-// Watchlist Model (unchanged)
+// Watchlist Model
 const UserWatchlist = sequelize.define('UserWatchlist', {
   id: {
     type: DataTypes.UUID,
@@ -260,12 +259,23 @@ class LegiScanService {
         year: currentYear
       });
       
-      // NEW CODE - PREDICTABLE
-if (Array.isArray(data.searchresult)) {
-  return data.searchresult; // ✅ Return array
-} else {
-  return []; // ✅ Always return array
-}
+      // FIX: Handle various response formats from LegiScan
+      if (data && data.searchresult) {
+        // Sometimes searchresult is an object with summary info, not an array
+        if (Array.isArray(data.searchresult)) {
+          return data.searchresult;
+        } else if (data.searchresult && data.searchresult.summary) {
+          // LegiScan sometimes returns summary data instead of bill results
+          console.log(`   Search returned summary data only for "${keyword}"`);
+          return [];
+        } else {
+          console.log(`   Unexpected searchresult format for "${keyword}"`);
+          return [];
+        }
+      }
+      
+      console.log(`   No results found for "${keyword}"`);
+      return [];
     } catch (error) {
       console.error(`Error searching for "${keyword}":`, error.message);
       return [];
@@ -379,7 +389,7 @@ if (Array.isArray(data.searchresult)) {
 // Initialize LegiScan service
 const legiScan = new LegiScanService(LEGISCAN_API_KEY);
 
-// ===== Bill Synchronization Functions =====
+// ===== FIXED Bill Synchronization Function =====
 async function syncRelevantBills() {
   let syncRecord;
   
@@ -398,7 +408,7 @@ async function syncRelevantBills() {
 
     // Process keywords in smaller batches for frequent sync
     const keywordBatches = [];
-    for (let i = 0; i < TRACKING_KEYWORDS.length; i += 2) { // Smaller batches for faster sync
+    for (let i = 0; i < TRACKING_KEYWORDS.length; i += 2) {
       keywordBatches.push(TRACKING_KEYWORDS.slice(i, i + 2));
     }
 
@@ -408,21 +418,44 @@ async function syncRelevantBills() {
           console.log(`🔍 Searching for: "${keyword}"`);
           
           const currentYear = new Date().getFullYear();
-          // NEW CODE - SAFE
-const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
-const validResults = Array.isArray(searchResults) ? searchResults : []; // ✅ SAFE
-for (const result of validResults.slice(0, 2)) { // ✅ WORKS
+          const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
+          
+          // FIX: Ensure searchResults is always an array
+          const validResults = Array.isArray(searchResults) ? searchResults : [];
+          
+          if (validResults.length === 0) {
+            console.log(`   No bills found for "${keyword}"`);
+            continue;
+          }
+
+          totalFound += validResults.length;
+          console.log(`   Found ${validResults.length} bills for "${keyword}"`);
+
+          // Process top 2 most relevant bills per keyword (faster sync)
+          for (const result of validResults.slice(0, 2)) {
             try {
+              // FIX: Validate result object before processing
+              if (!result || !result.bill_id) {
+                console.log('   Skipping invalid result');
+                continue;
+              }
+
               const billDetails = await legiScan.getBillDetails(result.bill_id);
-              if (!billDetails) continue;
+              if (!billDetails) {
+                console.log(`   No details found for bill ${result.bill_id}`);
+                continue;
+              }
 
               const relevanceAnalysis = legiScan.analyzeRelevance(
-                billDetails.title,
+                billDetails.title || '',
                 billDetails.description || ''
               );
 
               // Only process bills with relevance score >= 1
-              if (relevanceAnalysis.relevanceScore < 1) continue;
+              if (relevanceAnalysis.relevanceScore < 1) {
+                console.log(`   Low relevance score for bill ${result.bill_id}`);
+                continue;
+              }
 
               const formattedBill = legiScan.formatBillForDatabase(billDetails, relevanceAnalysis);
 
@@ -456,23 +489,28 @@ for (const result of validResults.slice(0, 2)) { // ✅ WORKS
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
+    // FIX: Ensure we're not passing NaN values to the database
+    const safeTotal = isNaN(totalFound) ? 0 : totalFound;
+    const safeAdded = isNaN(totalAdded) ? 0 : totalAdded;
+    const safeUpdated = isNaN(totalUpdated) ? 0 : totalUpdated;
+
     if (syncRecord) {
       await syncRecord.update({
         status: 'completed',
         endTime: new Date(),
-        billsFound: totalFound,
-        billsAdded: totalAdded,
-        billsUpdated: totalUpdated
+        billsFound: safeTotal,
+        billsAdded: safeAdded,
+        billsUpdated: safeUpdated
       });
     }
 
-    console.log(`✅ Sync complete! Found: ${totalFound}, Added: ${totalAdded}, Updated: ${totalUpdated}`);
+    console.log(`✅ Sync complete! Found: ${safeTotal}, Added: ${safeAdded}, Updated: ${safeUpdated}`);
     
     return {
       success: true,
-      totalFound,
-      totalAdded,
-      totalUpdated,
+      totalFound: safeTotal,
+      totalAdded: safeAdded,
+      totalUpdated: safeUpdated,
       timestamp: new Date()
     };
 
@@ -484,6 +522,9 @@ for (const result of validResults.slice(0, 2)) { // ✅ WORKS
         await syncRecord.update({
           status: 'failed',
           endTime: new Date(),
+          billsFound: 0,
+          billsAdded: 0,
+          billsUpdated: 0,
           errorMessage: error.message
         });
       } catch (updateError) {
@@ -495,7 +536,7 @@ for (const result of validResults.slice(0, 2)) { // ✅ WORKS
   }
 }
 
-// Auth middleware (unchanged)
+// Auth middleware
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -519,7 +560,7 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// ===== ENHANCED API ROUTES =====
+// ===== API ROUTES =====
 
 // Root route
 app.get('/', (req, res) => {
@@ -559,7 +600,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Auth routes (unchanged from your original)
+// Auth routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, organization } = req.body;
@@ -816,7 +857,7 @@ app.post('/api/admin/users/:id/approve', authenticateToken, async (req, res) => 
   }
 });
 
-// NEW: LegiScan Integration Admin Routes
+// LegiScan Integration Admin Routes
 app.post('/api/admin/sync-bills', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -897,16 +938,13 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
 });
 
 // Dashboard route
-// ===== REPLACE YOUR EXISTING DASHBOARD AND CATCH-ALL ROUTES WITH THIS =====
-
-// Dashboard route - serves your original frontend
 app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend.html'));
-});
-
-// Root route - redirects to dashboard  
-app.get('/', (req, res) => {
-  res.redirect('/dashboard');
+  const frontendPath = path.join(__dirname, 'frontend.html');
+  if (require('fs').existsSync(frontendPath)) {
+    res.sendFile(frontendPath);
+  } else {
+    res.json({ message: 'Legislative Tracker API', status: 'Frontend not found' });
+  }
 });
 
 // Serve static files (if frontend exists)
@@ -914,7 +952,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/build')));
 }
 
-// Catch-all handler - serves your frontend for any non-API routes
+// Catch-all handler
 app.get('*', (req, res) => {
   const frontendPath = path.join(__dirname, 'frontend.html');
   if (require('fs').existsSync(frontendPath)) {
