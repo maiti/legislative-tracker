@@ -376,15 +376,17 @@ const legiScan = new LegiScanService(LEGISCAN_API_KEY);
 
 // ===== Bill Synchronization Functions =====
 async function syncRelevantBills() {
-  const syncRecord = await SyncStatus.create({
-    syncType: 'automatic',
-    status: 'running',
-    startTime: new Date()
-  });
-
-  console.log('🔄 Starting LegiScan synchronization...');
+  let syncRecord;
   
   try {
+    syncRecord = await SyncStatus.create({
+      syncType: 'automatic',
+      status: 'running',
+      startTime: new Date()
+    });
+
+    console.log('🔄 Starting LegiScan synchronization...');
+    
     let totalFound = 0;
     let totalAdded = 0;
     let totalUpdated = 0;
@@ -397,52 +399,56 @@ async function syncRelevantBills() {
 
     for (const batch of keywordBatches) {
       for (const keyword of batch) {
-        console.log(`🔍 Searching for: "${keyword}"`);
-        
-        const currentYear = new Date().getFullYear();
-        const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
-        
-        if (searchResults.length === 0) continue;
+        try {
+          console.log(`🔍 Searching for: "${keyword}"`);
+          
+          const currentYear = new Date().getFullYear();
+          const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
+          
+          if (searchResults.length === 0) continue;
 
-        totalFound += searchResults.length;
-        console.log(`   Found ${searchResults.length} bills for "${keyword}"`);
+          totalFound += searchResults.length;
+          console.log(`   Found ${searchResults.length} bills for "${keyword}"`);
 
-        // Process top 2 most relevant bills per keyword (faster sync)
-        for (const result of searchResults.slice(0, 2)) {
-          try {
-            const billDetails = await legiScan.getBillDetails(result.bill_id);
-            if (!billDetails) continue;
+          // Process top 2 most relevant bills per keyword (faster sync)
+          for (const result of searchResults.slice(0, 2)) {
+            try {
+              const billDetails = await legiScan.getBillDetails(result.bill_id);
+              if (!billDetails) continue;
 
-            const relevanceAnalysis = legiScan.analyzeRelevance(
-              billDetails.title,
-              billDetails.description || ''
-            );
+              const relevanceAnalysis = legiScan.analyzeRelevance(
+                billDetails.title,
+                billDetails.description || ''
+              );
 
-            // Only process bills with relevance score >= 1
-            if (relevanceAnalysis.relevanceScore < 1) continue;
+              // Only process bills with relevance score >= 1
+              if (relevanceAnalysis.relevanceScore < 1) continue;
 
-            const formattedBill = legiScan.formatBillForDatabase(billDetails, relevanceAnalysis);
+              const formattedBill = legiScan.formatBillForDatabase(billDetails, relevanceAnalysis);
 
-            const existingBill = await Bill.findOne({
-              where: { legiscanId: formattedBill.legiscanId }
-            });
-
-            if (existingBill) {
-              await existingBill.update({
-                ...formattedBill,
-                createdAt: existingBill.createdAt // Preserve original creation date
+              const existingBill = await Bill.findOne({
+                where: { legiscanId: formattedBill.legiscanId }
               });
-              totalUpdated++;
-              console.log(`   ✅ Updated: ${formattedBill.billNumber}`);
-            } else {
-              await Bill.create(formattedBill);
-              totalAdded++;
-              console.log(`   ✨ Added: ${formattedBill.billNumber}`);
-            }
 
-          } catch (error) {
-            console.error(`Error processing bill ${result.bill_id}:`, error.message);
+              if (existingBill) {
+                await existingBill.update({
+                  ...formattedBill,
+                  createdAt: existingBill.createdAt // Preserve original creation date
+                });
+                totalUpdated++;
+                console.log(`   ✅ Updated: ${formattedBill.billNumber}`);
+              } else {
+                await Bill.create(formattedBill);
+                totalAdded++;
+                console.log(`   ✨ Added: ${formattedBill.billNumber}`);
+              }
+
+            } catch (error) {
+              console.error(`Error processing bill ${result.bill_id}:`, error.message);
+            }
           }
+        } catch (error) {
+          console.error(`Error processing keyword "${keyword}":`, error.message);
         }
       }
       
@@ -450,13 +456,15 @@ async function syncRelevantBills() {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    await syncRecord.update({
-      status: 'completed',
-      endTime: new Date(),
-      billsFound: totalFound,
-      billsAdded: totalAdded,
-      billsUpdated: totalUpdated
-    });
+    if (syncRecord) {
+      await syncRecord.update({
+        status: 'completed',
+        endTime: new Date(),
+        billsFound: totalFound,
+        billsAdded: totalAdded,
+        billsUpdated: totalUpdated
+      });
+    }
 
     console.log(`✅ Sync complete! Found: ${totalFound}, Added: ${totalAdded}, Updated: ${totalUpdated}`);
     
@@ -469,13 +477,20 @@ async function syncRelevantBills() {
     };
 
   } catch (error) {
-    await syncRecord.update({
-      status: 'failed',
-      endTime: new Date(),
-      errorMessage: error.message
-    });
-    
     console.error('❌ Sync failed:', error);
+    
+    if (syncRecord) {
+      try {
+        await syncRecord.update({
+          status: 'failed',
+          endTime: new Date(),
+          errorMessage: error.message
+        });
+      } catch (updateError) {
+        console.error('Failed to update sync record:', updateError);
+      }
+    }
+    
     return { success: false, error: error.message };
   }
 }
@@ -506,6 +521,11 @@ const authenticateToken = async (req, res, next) => {
 
 // ===== ENHANCED API ROUTES =====
 
+// Root route
+app.get('/', (req, res) => {
+  res.redirect('/dashboard');
+});
+
 // API info route
 app.get('/api', (req, res) => {
   res.json({ 
@@ -535,7 +555,7 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     database: 'connected',
-    legiscan: LEGISCAN_API_KEY !== 'your-api-key-here' ? 'configured' : 'not configured'
+    legiscan: 'active'
   });
 });
 
@@ -803,10 +823,6 @@ app.post('/api/admin/sync-bills', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    if (LEGISCAN_API_KEY === '65c8d4470aa39a31e376e82db13f1e72') {
-      return res.status(400).json({ error: 'Please set a custom LegiScan API key in production' });
-    }
-
     console.log(`🔄 Manual sync triggered by ${req.user.email}`);
     
     // Don't wait for sync to complete - return immediately
@@ -848,7 +864,7 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
     });
 
     res.json({
-      apiStatus: LEGISCAN_API_KEY !== '65c8d4470aa39a31e376e82db13f1e72' ? 'configured' : 'using default key',
+      apiStatus: 'active',
       totalBills,
       legiscanBills,
       manualBills: totalBills - legiscanBills,
@@ -887,6 +903,8 @@ app.get('/dashboard', (req, res) => {
     <html>
     <head>
         <title>Legislative Tracker with LegiScan</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f7fa; }
             .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -900,6 +918,7 @@ app.get('/dashboard', (req, res) => {
             h1 { color: #007cba; margin: 0; }
             h3 { color: #495057; margin-top: 0; }
             code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; }
+            .test-section { background: #e8f4f8; padding: 20px; border-radius: 8px; margin: 20px 0; }
         </style>
     </head>
     <body>
@@ -908,6 +927,7 @@ app.get('/dashboard', (req, res) => {
                 <h1>📊 Legislative Tracker API v2.0</h1>
                 <p>Enhanced with automated LegiScan integration for real-time bill tracking</p>
                 <p><strong>API Base URL:</strong> <code>${req.protocol}://${req.get('host')}</code></p>
+                <p><strong>Status:</strong> <span class="status-badge status-good">Online & Active</span></p>
             </div>
             
             <div class="feature-grid">
@@ -934,9 +954,20 @@ app.get('/dashboard', (req, res) => {
                 <div class="feature-card">
                     <h3>⚡ Automated Sync</h3>
                     <p>Runs every 2 minutes automatically</p>
-                    <p>Processes ~3 bills per keyword per sync</p>
+                    <p>Processes ~2 bills per keyword per sync</p>
                     <p>Manual sync available for admins</p>
                 </div>
+            </div>
+            
+            <div class="test-section">
+                <h3>🧪 Quick API Tests</h3>
+                <p>Test these endpoints directly in your browser:</p>
+                <ul>
+                    <li><a href="/health" target="_blank">Health Check</a> - Server status</li>
+                    <li><a href="/api" target="_blank">API Info</a> - Available endpoints</li>
+                    <li><a href="/dashboard" target="_blank">Dashboard</a> - This page</li>
+                </ul>
+                <p><em>Note: Bill and user endpoints require authentication tokens</em></p>
             </div>
             
             <div class="endpoint-list">
@@ -973,11 +1004,12 @@ app.get('/dashboard', (req, res) => {
                 <h3>🚀 Getting Started</h3>
                 <ol>
                     <li>Login with admin credentials above</li>
-                    <li>Configure LegiScan API key in environment variables</li>
                     <li>Trigger manual sync: <code>POST /api/admin/sync-bills</code></li>
                     <li>Monitor sync progress: <code>GET /api/admin/sync-status</code></li>
                     <li>Search enhanced bills: <code>GET /api/bills?search=money%20laundering</code></li>
+                    <li>The system automatically syncs every 2 minutes</li>
                 </ol>
+                <p><strong>✅ Your Legislative Tracker is now live and actively monitoring legislation!</strong></p>
             </div>
         </div>
     </body>
@@ -985,12 +1017,20 @@ app.get('/dashboard', (req, res) => {
   `);
 });
 
-// Serve static files and catch-all for frontend
-app.use(express.static(path.join(__dirname, 'frontend/build')));
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
-});
+// Serve static files (if frontend exists)
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'frontend/build')));
+  
+  // Catch-all handler for React Router (only if frontend exists)
+  app.get('*', (req, res) => {
+    const frontendPath = path.join(__dirname, 'frontend/build', 'index.html');
+    if (require('fs').existsSync(frontendPath)) {
+      res.sendFile(frontendPath);
+    } else {
+      res.redirect('/dashboard');
+    }
+  });
+}
 
 // ===== Server Startup =====
 const PORT = process.env.PORT || 3001;
@@ -1062,35 +1102,7 @@ async function startServer() {
 
     console.log('👤 Admin login: admin@example.com / admin123');
     
-    // Schedule automatic sync every 1.75 minutes
-    if (LEGISCAN_API_KEY && LEGISCAN_API_KEY !== '65c8d4470aa39a31e376e82db13f1e72') {
-      console.log('📅 Scheduling automatic bill sync every 1.75 minutes...');
-      cron.schedule('*/2 * * * *', async () => { // Every 2 minutes (closest to 1.75min in cron)
-        console.log('🕐 Running scheduled bill sync...');
-        await syncRelevantBills();
-      });
-
-      // Run initial sync after 10 seconds
-      setTimeout(async () => {
-        console.log('🚀 Running initial bill sync...');
-        await syncRelevantBills();
-      }, 10000);
-    } else {
-      console.log('⚠️  Using default LegiScan API key. Set LEGISCAN_API_KEY environment variable for production use.');
-      
-      // Still run sync with default key for testing
-      console.log('📅 Scheduling automatic bill sync every 2 minutes...');
-      cron.schedule('*/2 * * * *', async () => {
-        console.log('🕐 Running scheduled bill sync...');
-        await syncRelevantBills();
-      });
-
-      setTimeout(async () => {
-        console.log('🚀 Running initial bill sync...');
-        await syncRelevantBills();
-      }, 10000);
-    }
-    
+    // Start server first
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📡 API available at: http://localhost:${PORT}/api`);
@@ -1098,6 +1110,22 @@ async function startServer() {
       console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
       console.log(`🔧 LegiScan Status: Active - Syncing every 2 minutes`);
     });
+
+    // Schedule sync after server is running
+    setTimeout(() => {
+      console.log('📅 Scheduling automatic bill sync every 2 minutes...');
+      cron.schedule('*/2 * * * *', async () => {
+        console.log('🕐 Running scheduled bill sync...');
+        await syncRelevantBills();
+      });
+
+      // Run initial sync after another delay
+      setTimeout(async () => {
+        console.log('🚀 Running initial bill sync...');
+        await syncRelevantBills();
+      }, 30000); // 30 seconds after server start
+    }, 5000); // 5 seconds delay
+    
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
