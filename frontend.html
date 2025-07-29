@@ -173,6 +173,8 @@
             font-family: monospace;
             font-size: 12px;
             border-left: 4px solid #3498db;
+            max-height: 150px;
+            overflow-y: auto;
         }
         .bill-item {
             background: #f8f9fa;
@@ -190,6 +192,23 @@
             color: #7f8c8d;
             font-size: 14px;
         }
+        .test-buttons {
+            margin: 10px 0;
+            text-align: center;
+        }
+        .test-btn {
+            background: #e67e22;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .test-btn:hover {
+            background: #d35400;
+        }
     </style>
 </head>
 <body>
@@ -198,6 +217,13 @@
         <div class="login-form">
             <h2>Legislative Tracker Login</h2>
             <div id="errorMessage" class="error-message" style="display: none;"></div>
+            
+            <!-- Test Buttons -->
+            <div class="test-buttons">
+                <button class="test-btn" onclick="testConnection()">Test Connection</button>
+                <button class="test-btn" onclick="testAPICall()">Test API</button>
+            </div>
+            
             <div class="form-group">
                 <label for="email">Email:</label>
                 <input type="email" id="email" placeholder="Enter your email" value="admin@example.com">
@@ -206,7 +232,7 @@
                 <label for="password">Password:</label>
                 <input type="password" id="password" placeholder="Enter your password" value="admin123">
             </div>
-            <button id="loginBtn" class="login-btn">Sign In</button>
+            <button id="loginBtn" class="login-btn" onclick="performLogin()">Sign In</button>
             <div class="demo-creds">
                 <strong>Demo Credentials:</strong><br>
                 Email: admin@example.com<br>
@@ -222,7 +248,7 @@
                     <span id="userDisplay"></span>
                     <span id="adminBadge" class="admin-badge" style="display: none;">Admin</span>
                 </div>
-                <button id="logoutBtn" class="logout-btn">Logout</button>
+                <button id="logoutBtn" class="logout-btn" onclick="logout()">Logout</button>
             </div>
             <h1>LegiScan Law Enforcement Training Legislation Tracker</h1>
             <p>Real-time tracking of legislation related to training for law enforcement and financial crime prevention</p>
@@ -257,9 +283,17 @@
         let debugLog = [];
 
         function addDebug(message) {
-            debugLog.push(`${new Date().toLocaleTimeString()}: ${message}`);
-            document.getElementById('debugText').innerHTML = debugLog.slice(-5).join('<br>');
-            console.log('DEBUG:', message);
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `${timestamp}: ${message}`;
+            debugLog.push(logMessage);
+            
+            // Keep only last 10 messages
+            if (debugLog.length > 10) {
+                debugLog = debugLog.slice(-10);
+            }
+            
+            document.getElementById('debugText').innerHTML = debugLog.join('<br>');
+            console.log('DEBUG:', logMessage);
         }
 
         // Initialize app
@@ -267,7 +301,6 @@
             addDebug('App initializing...');
             clearAuthData();
             showLogin();
-            setupEventListeners();
         });
 
         function clearAuthData() {
@@ -296,40 +329,82 @@
             }
         }
 
-        function login() {
+        // Test functions
+        async function testConnection() {
+            addDebug('Testing basic connection...');
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                addDebug(`Health check: ${data.status} - ${response.status}`);
+                showError(`Connection OK: ${data.status}`, 'green');
+            } catch (error) {
+                addDebug(`Connection failed: ${error.message}`);
+                showError(`Connection Error: ${error.message}`, 'red');
+            }
+        }
+
+        async function testAPICall() {
+            addDebug('Testing API endpoint...');
+            try {
+                const response = await fetch('/api');
+                const data = await response.json();
+                addDebug(`API test: ${data.status} - ${response.status}`);
+                showError(`API OK: ${data.message}`, 'green');
+            } catch (error) {
+                addDebug(`API test failed: ${error.message}`);
+                showError(`API Error: ${error.message}`, 'red');
+            }
+        }
+
+        async function performLogin() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const loginBtn = document.getElementById('loginBtn');
-            const errorDiv = document.getElementById('errorMessage');
-
-            addDebug(`Attempting login for: ${email}`);
+            
+            addDebug(`STARTING LOGIN for: ${email}`);
 
             if (!email || !password) {
+                addDebug('Missing credentials');
                 showError('Please enter both email and password');
                 return;
             }
 
             loginBtn.disabled = true;
             loginBtn.textContent = 'Signing In...';
-            errorDiv.style.display = 'none';
 
-            const loginData = { email, password };
-            addDebug(`Sending login request to /api/auth/login`);
+            try {
+                addDebug('Creating login request...');
+                
+                const loginData = { email, password };
+                addDebug(`Login data: ${JSON.stringify(loginData)}`);
 
-            fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData)
-            })
-            .then(response => {
-                addDebug(`Login response status: ${response.status}`);
+                const requestOptions = {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                };
+                
+                addDebug(`Request options: ${JSON.stringify(requestOptions, null, 2)}`);
+
+                addDebug('Sending request to /api/auth/login...');
+                const response = await fetch('/api/auth/login', requestOptions);
+                
+                addDebug(`Response status: ${response.status}`);
+                addDebug(`Response headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                const responseText = await response.text();
+                addDebug(`Raw response: ${responseText.substring(0, 200)}...`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
                 }
-                return response.json();
-            })
-            .then(data => {
-                addDebug(`Login response received: ${JSON.stringify(data).substring(0, 100)}...`);
+
+                const data = JSON.parse(responseText);
+                addDebug(`Parsed response: ${JSON.stringify(data).substring(0, 100)}...`);
+
                 if (data.accessToken) {
                     localStorage.setItem('accessToken', data.accessToken);
                     localStorage.setItem('user', JSON.stringify(data.user));
@@ -340,17 +415,17 @@
                     loadBills();
                     loadSyncStatus();
                 } else {
+                    addDebug('No token in response');
                     showError(data.error || 'Login failed - no token received');
                 }
-            })
-            .catch(error => {
-                addDebug(`Login error: ${error.message}`);
+
+            } catch (error) {
+                addDebug(`LOGIN ERROR: ${error.message}`);
                 showError(`Login failed: ${error.message}`);
-            })
-            .finally(() => {
+            } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Sign In';
-            });
+            }
         }
 
         function logout() {
@@ -359,11 +434,19 @@
             showLogin();
         }
 
-        function showError(message) {
+        function showError(message, color = 'red') {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            addDebug(`Error shown: ${message}`);
+            errorDiv.style.backgroundColor = color === 'green' ? '#27ae60' : '#e74c3c';
+            addDebug(`Error/Message shown: ${message}`);
+            
+            // Auto-hide after 5 seconds for success messages
+            if (color === 'green') {
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
         }
 
         function loadBills() {
@@ -465,30 +548,17 @@
             });
         }
 
-        function setupEventListeners() {
-            // Login form
-            document.getElementById('loginBtn').addEventListener('click', login);
-            document.getElementById('password').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') login();
-            });
-
-            // Logout
-            document.getElementById('logoutBtn').addEventListener('click', logout);
-
-            addDebug('Event listeners setup complete');
-        }
-
-        // Test API connectivity
+        // Initial connection test
         setTimeout(() => {
-            fetch('/health')
-                .then(response => response.json())
-                .then(data => {
-                    addDebug(`Health check: ${data.status}`);
-                })
-                .catch(error => {
-                    addDebug(`Health check failed: ${error.message}`);
-                });
+            testConnection();
         }, 1000);
+
+        // Add event listeners for Enter key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.getElementById('loginOverlay').style.display !== 'none') {
+                performLogin();
+            }
+        });
     </script>
 </body>
 </html>
