@@ -1,24 +1,47 @@
 {
   "name": "legislative-tracker",
-  "version": "1.0.0",
-  "description": "Legislative bill tracking application",
+  "version": "2.0.0",
+  "description": "Legislative bill tracking system with LegiScan API integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "heroku-postbuild": "cd frontend && npm install && npm run build"
+    "dev": "nodemon server.js",
+    "heroku-postbuild": "echo 'Heroku postbuild complete'",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
     "node": "18.x",
     "npm": "9.x"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "express": "^4.18.0",
-    "helmet": "^7.0.0",
-    "jsonwebtoken": "^9.0.0",
-    "pg": "^8.8.0",
-    "sequelize": "^6.28.0"
+    "helmet": "^8.0.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "sequelize": "^6.37.7",
+    "pg": "^8.13.1",
+    "pg-hstore": "^2.3.4",
+    "dotenv": "^16.4.7",
+    "axios": "^1.7.9",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "keywords": [
+    "legislative",
+    "bills",
+    "tracking",
+    "legiscan",
+    "api",
+    "law enforcement",
+    "financial crimes"
+  ],
+  "author": "Your Organization",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "your-repo-url"
   }
 }
