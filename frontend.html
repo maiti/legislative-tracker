@@ -8,27 +8,31 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 0;
+            background-color: #f5f7fa;
         }
         .container {
             max-width: 1400px;
             margin: 0 auto;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
+            min-height: 100vh;
         }
         .header {
             background: linear-gradient(135deg, #2c3e50, #3498db);
             color: white;
             padding: 20px;
-            text-align: center;
             position: relative;
         }
         .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            text-align: center;
+        }
+        .header p {
             margin: 0;
-            font-size: 24px;
+            text-align: center;
+            opacity: 0.9;
+            font-size: 16px;
         }
         .auth-controls {
             position: absolute;
@@ -44,50 +48,260 @@
         }
         .admin-badge {
             background: rgba(46, 204, 113, 0.3);
-            padding: 2px 8px;
-            border-radius: 12px;
+            padding: 4px 12px;
+            border-radius: 15px;
             font-size: 12px;
             border: 1px solid rgba(46, 204, 113, 0.5);
+            font-weight: 500;
         }
         .logout-btn {
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.3);
             color: white;
-            padding: 5px 12px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
+            transition: background 0.2s;
         }
         .logout-btn:hover {
             background: rgba(255,255,255,0.3);
         }
         .sync-status {
-            background: rgba(52, 152, 219, 0.2);
+            background: rgba(52, 152, 219, 0.15);
+            color: #2c3e50;
+            padding: 12px 20px;
+            font-size: 14px;
+            text-align: center;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .controls-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .search-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .filter-select {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .search-btn, .sync-btn {
+            padding: 12px 24px;
+            background: #3498db;
             color: white;
-            padding: 8px 20px;
-            font-size: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .search-btn:hover, .sync-btn:hover {
+            background: #2980b9;
+        }
+        .sync-btn {
+            background: #27ae60;
+        }
+        .sync-btn:hover {
+            background: #229954;
+        }
+        .sync-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+        .stat-item {
             text-align: center;
         }
-        .table-container {
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+        .main-content {
             padding: 20px;
         }
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 60px;
             color: #7f8c8d;
         }
         .loading-spinner {
-            border: 3px solid #ecf0f1;
-            border-top: 3px solid #3498db;
+            border: 4px solid #ecf0f1;
+            border-top: 4px solid #3498db;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 20px;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        .bills-grid {
+            display: grid;
+            gap: 20px;
+        }
+        .bill-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .bill-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .bill-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .bill-number {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+        .bill-state {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .bill-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 12px 0;
+            line-height: 1.4;
+        }
+        .bill-description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .bill-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 12px;
+        }
+        .bill-status {
+            background: #fff3cd;
+            color: #856404;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .bill-progress {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .bill-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            transition: width 0.3s ease;
+        }
+        .bill-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .keyword-tag {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .relevance-score {
+            background: #ffeaa7;
+            color: #e17055;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .no-bills {
+            text-align: center;
+            padding: 60px;
+            color: #7f8c8d;
+        }
+        .no-bills-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            border-left: 4px solid #3498db;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            border-left: 4px solid #dc3545;
         }
         .login-overlay {
             position: fixed;
@@ -103,43 +317,52 @@
         }
         .login-form {
             background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             width: 100%;
             max-width: 400px;
         }
         .login-form h2 {
-            margin: 0 0 20px 0;
+            margin: 0 0 24px 0;
             text-align: center;
             color: #2c3e50;
+            font-size: 24px;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: 500;
             color: #2c3e50;
         }
         .form-group input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #bdc3c7;
-            border-radius: 4px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
         }
         .login-btn {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: #3498db;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             font-size: 16px;
+            font-weight: 500;
             cursor: pointer;
+            transition: background 0.2s;
         }
         .login-btn:hover {
             background: #2980b9;
@@ -148,75 +371,79 @@
             background: #95a5a6;
             cursor: not-allowed;
         }
-        .error-message {
-            background: #e74c3c;
-            color: white;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 14px;
-        }
-        .demo-creds {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 15px;
-            font-size: 12px;
-            color: #7f8c8d;
-        }
-        .debug-info {
-            background: #f8f9fa;
-            padding: 15px;
-            margin: 15px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            border-left: 4px solid #3498db;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .bill-item {
-            background: #f8f9fa;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 4px;
-            border-left: 4px solid #3498db;
-        }
-        .bill-title {
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 5px;
-        }
-        .bill-description {
-            color: #7f8c8d;
-            font-size: 14px;
-        }
         .test-buttons {
-            margin: 10px 0;
+            margin: 20px 0;
             text-align: center;
         }
         .test-btn {
             background: #e67e22;
             color: white;
             border: none;
-            padding: 8px 16px;
-            margin: 0 5px;
-            border-radius: 4px;
+            padding: 10px 20px;
+            margin: 0 8px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
+            transition: background 0.2s;
         }
         .test-btn:hover {
             background: #d35400;
         }
+        .demo-creds {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #6c757d;
+            text-align: center;
+        }
         .success-message {
-            background: #27ae60;
-            color: white;
-            padding: 10px;
-            border-radius: 4px;
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 6px;
             margin-bottom: 15px;
             text-align: center;
             font-size: 14px;
+        }
+        .error-alert {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 30px;
+            padding: 20px;
+        }
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #e9ecef;
+            background: white;
+            color: #495057;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .page-btn:hover {
+            background: #f8f9fa;
+        }
+        .page-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -224,11 +451,10 @@
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-form">
-            <h2>Legislative Tracker Login</h2>
-            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <h2>Legislative Tracker</h2>
+            <div id="errorMessage" class="error-alert" style="display: none;"></div>
             <div id="successMessage" class="success-message" style="display: none;"></div>
             
-            <!-- Test Buttons -->
             <div class="test-buttons">
                 <button id="testConnectionBtn" class="test-btn">Test Connection</button>
                 <button id="testAPIBtn" class="test-btn">Test API</button>
@@ -243,6 +469,7 @@
                 <input type="password" id="password" placeholder="Enter your password" value="admin123">
             </div>
             <button id="loginBtn" class="login-btn">Sign In</button>
+            
             <div class="demo-creds">
                 <strong>Demo Credentials:</strong><br>
                 Email: admin@example.com<br>
@@ -251,6 +478,7 @@
         </div>
     </div>
 
+    <!-- Main Application -->
     <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
             <div class="auth-controls">
@@ -265,7 +493,53 @@
         </div>
         
         <div id="syncStatus" class="sync-status">
-            Loading system status...
+            🔄 Loading system status...
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <div class="stat-number" id="totalBillsCount">-</div>
+                <div class="stat-label">Total Bills</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="legiscanBillsCount">-</div>
+                <div class="stat-label">LegiScan Bills</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="manualBillsCount">-</div>
+                <div class="stat-label">Manual Bills</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="relevantBillsCount">-</div>
+                <div class="stat-label">High Relevance</div>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, or keywords...">
+                
+                <select id="stateFilter" class="filter-select">
+                    <option value="all">All States</option>
+                    <option value="US">Federal</option>
+                    <option value="AL">Alabama</option>
+                    <option value="CA">California</option>
+                    <option value="FL">Florida</option>
+                    <option value="NY">New York</option>
+                    <option value="TX">Texas</option>
+                </select>
+                
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">All Status</option>
+                    <option value="introduced">Introduced</option>
+                    <option value="committee">In Committee</option>
+                    <option value="passed">Passed</option>
+                    <option value="enacted">Enacted</option>
+                </select>
+                
+                <button id="searchBtn" class="search-btn">Search</button>
+                <button id="syncBtn" class="sync-btn">Sync LegiScan</button>
+            </div>
         </div>
 
         <div id="debugInfo" class="debug-info">
@@ -273,15 +547,21 @@
             <span id="debugText">Initializing...</span>
         </div>
         
-        <div class="table-container">
+        <div class="main-content">
             <div id="loadingIndicator" class="loading">
                 <div class="loading-spinner"></div>
                 Loading legislative data...
             </div>
             
-            <div id="billsList" style="display: none;">
-                <h3>Legislative Bills</h3>
-                <div id="billsContainer"></div>
+            <div id="billsContainer" style="display: none;">
+                <div class="bills-grid" id="billsGrid"></div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+            
+            <div id="noBillsMessage" class="no-bills" style="display: none;">
+                <div class="no-bills-icon">📋</div>
+                <h3>No Bills Found</h3>
+                <p>Try adjusting your search criteria or sync with LegiScan to get the latest data.</p>
             </div>
         </div>
     </div>
@@ -291,13 +571,28 @@
         let currentUser = null;
         let authToken = null;
         let debugLog = [];
+        let allBills = [];
+        let filteredBills = [];
+        let currentPage = 1;
+        let billsPerPage = 10;
+
+        // Keywords we're tracking
+        const TRACKING_KEYWORDS = [
+            'Financial crimes', 'Fraud investigation', 'Anti-money laundering', 'AML',
+            'Economic crimes', 'White-collar crime', 'Asset forfeiture', 'Illicit finance',
+            'Investigative accounting', 'Forensic auditing', 'Financial intelligence',
+            'Money laundering prevention', 'Financial analysis training', 'Law enforcement training',
+            'Technical assistance', 'Capacity building', 'Justice assistance grants',
+            'Training and technical assistance', 'TTA', 'Evidence-based practices',
+            'Criminal justice system improvement', 'Intelligence sharing',
+            'Multi-jurisdictional task forces', 'Cybercrime', 'Digital forensics'
+        ];
 
         function addDebug(message) {
             const timestamp = new Date().toLocaleTimeString();
             const logMessage = `${timestamp}: ${message}`;
             debugLog.push(logMessage);
             
-            // Keep only last 15 messages
             if (debugLog.length > 15) {
                 debugLog = debugLog.slice(-15);
             }
@@ -369,7 +664,6 @@
                     errorDiv.style.display = 'none';
                 }
                 
-                // Auto-hide success message
                 setTimeout(() => {
                     if (successDiv) successDiv.style.display = 'none';
                 }, 5000);
@@ -378,7 +672,6 @@
             addDebug(`Message shown (${isError ? 'error' : 'success'}): ${message}`);
         }
 
-        // Test functions
         async function testConnection() {
             addDebug('Testing basic connection...');
             try {
@@ -445,8 +738,6 @@
                 addDebug('Creating login request...');
                 
                 const loginData = { email, password };
-                addDebug(`Login data prepared`);
-
                 const requestOptions = {
                     method: 'POST',
                     headers: { 
@@ -460,11 +751,9 @@
                 const response = await fetch('/api/auth/login', requestOptions);
                 
                 addDebug(`Response status: ${response.status}`);
-                addDebug(`Response content-type: ${response.headers.get('content-type')}`);
                 
                 const responseText = await response.text();
                 addDebug(`Raw response length: ${responseText.length} chars`);
-                addDebug(`Response preview: ${responseText.substring(0, 200)}...`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${responseText}`);
@@ -491,8 +780,7 @@
                     authToken = data.accessToken;
                     addDebug('Login successful, showing main interface');
                     showMainInterface();
-                    loadBills();
-                    loadSyncStatus();
+                    loadDashboard();
                 } else {
                     addDebug('No token in response');
                     showMessage(data.error || 'Login failed - no token received', true);
@@ -513,7 +801,15 @@
             showLogin();
         }
 
-        function loadBills() {
+        async function loadDashboard() {
+            addDebug('Loading dashboard...');
+            await Promise.all([
+                loadBills(),
+                loadSyncStatus()
+            ]);
+        }
+
+        async function loadBills() {
             addDebug('Loading bills...');
             
             if (!authToken) {
@@ -522,123 +818,306 @@
                 return;
             }
 
-            const url = '/api/bills';
-            addDebug(`Fetching bills from: ${url}`);
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const billsContainer = document.getElementById('billsContainer');
+            const noBillsMessage = document.getElementById('noBillsMessage');
+            
+            if (loadingIndicator) loadingIndicator.style.display = 'block';
+            if (billsContainer) billsContainer.style.display = 'none';
+            if (noBillsMessage) noBillsMessage.style.display = 'none';
 
-            fetch(url, {
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            })
-            .then(response => {
+            try {
+                const searchParams = new URLSearchParams({
+                    limit: '50',
+                    sortBy: 'relevanceScore',
+                    sortOrder: 'DESC'
+                });
+
+                const response = await fetch(`/api/bills?${searchParams}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
                 addDebug(`Bills response status: ${response.status}`);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
-                return response.json();
-            })
-            .then(data => {
+                
+                const data = await response.json();
                 addDebug(`Bills data received: ${data.bills ? data.bills.length : 0} bills`);
-                displayBills(data.bills || []);
-                const loadingIndicator = document.getElementById('loadingIndicator');
-                const billsList = document.getElementById('billsList');
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
-                if (billsList) billsList.style.display = 'block';
-            })
-            .catch(error => {
+                
+                allBills = data.bills || [];
+                updateStats(data.stats || {});
+                filterAndDisplayBills();
+
+            } catch (error) {
                 addDebug(`Error loading bills: ${error.message}`);
-                const loadingIndicator = document.getElementById('loadingIndicator');
                 if (loadingIndicator) {
                     loadingIndicator.innerHTML = `
-                        <p style="color: red;">Error loading bills: ${error.message}</p>
-                        <button id="retryBillsBtn" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Try Again</button>
+                        <div style="color: #e74c3c; text-align: center;">
+                            <h3>Error Loading Bills</h3>
+                            <p>${error.message}</p>
+                            <button id="retryBillsBtn" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;">Try Again</button>
+                        </div>
                     `;
                     
-                    // Add event listener for retry button
                     const retryBtn = document.getElementById('retryBillsBtn');
                     if (retryBtn) {
                         retryBtn.addEventListener('click', loadBills);
                     }
                 }
-            });
+            }
         }
 
-        function loadSyncStatus() {
+        function updateStats(stats) {
+            const totalBillsCount = document.getElementById('totalBillsCount');
+            const legiscanBillsCount = document.getElementById('legiscanBillsCount');
+            const manualBillsCount = document.getElementById('manualBillsCount');
+            const relevantBillsCount = document.getElementById('relevantBillsCount');
+            
+            if (totalBillsCount) totalBillsCount.textContent = stats.totalBills || allBills.length || 0;
+            if (legiscanBillsCount) legiscanBillsCount.textContent = stats.legiscanBills || 0;
+            if (manualBillsCount) manualBillsCount.textContent = stats.manualBills || 0;
+            if (relevantBillsCount) {
+                const highRelevance = allBills.filter(bill => (bill.relevanceScore || 0) >= 3).length;
+                relevantBillsCount.textContent = highRelevance;
+            }
+        }
+
+        function filterAndDisplayBills() {
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const stateFilter = document.getElementById('stateFilter')?.value || 'all';
+            const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+            
+            filteredBills = allBills.filter(bill => {
+                const matchesSearch = !searchTerm || 
+                    (bill.title && bill.title.toLowerCase().includes(searchTerm)) ||
+                    (bill.description && bill.description.toLowerCase().includes(searchTerm)) ||
+                    (bill.keywords && bill.keywords.toLowerCase().includes(searchTerm)) ||
+                    (bill.billNumber && bill.billNumber.toLowerCase().includes(searchTerm));
+                
+                const matchesState = stateFilter === 'all' || bill.stateCode === stateFilter;
+                
+                const matchesStatus = statusFilter === 'all' || 
+                    (bill.status && bill.status.toLowerCase().includes(statusFilter));
+                
+                return matchesSearch && matchesState && matchesStatus;
+            });
+            
+            currentPage = 1;
+            displayBills();
+        }
+
+        function displayBills() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const billsContainer = document.getElementById('billsContainer');
+            const noBillsMessage = document.getElementById('noBillsMessage');
+            const billsGrid = document.getElementById('billsGrid');
+            
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+            
+            if (filteredBills.length === 0) {
+                if (billsContainer) billsContainer.style.display = 'none';
+                if (noBillsMessage) noBillsMessage.style.display = 'block';
+                return;
+            }
+            
+            if (billsContainer) billsContainer.style.display = 'block';
+            if (noBillsMessage) noBillsMessage.style.display = 'none';
+            
+            const startIndex = (currentPage - 1) * billsPerPage;
+            const endIndex = startIndex + billsPerPage;
+            const billsToShow = filteredBills.slice(startIndex, endIndex);
+            
+            if (billsGrid) {
+                billsGrid.innerHTML = '';
+                
+                billsToShow.forEach(bill => {
+                    const billCard = document.createElement('div');
+                    billCard.className = 'bill-card';
+                    
+                    const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
+                    const keywordTags = keywords.slice(0, 3).map(keyword => 
+                        `<span class="keyword-tag">${keyword}</span>`
+                    ).join('');
+                    
+                    const relevanceTag = bill.relevanceScore ? 
+                        `<span class="relevance-score">Relevance: ${bill.relevanceScore}</span>` : '';
+                    
+                    billCard.innerHTML = `
+                        <div class="bill-header">
+                            <div>
+                                <span class="bill-number">${bill.billNumber || 'Unknown'}</span>
+                                <span class="bill-state">${bill.stateCode || 'Unknown'}</span>
+                            </div>
+                        </div>
+                        <h3 class="bill-title">${bill.title || 'No title available'}</h3>
+                        <div class="bill-meta">
+                            <span class="bill-status">${bill.status || 'Unknown'}</span>
+                            <span>Source: ${bill.sourceType || 'Unknown'}</span>
+                        </div>
+                        <div class="bill-progress">
+                            <div class="bill-progress-fill" style="width: ${bill.progressPercentage || 0}%"></div>
+                        </div>
+                        <p class="bill-description">${(bill.description || 'No description available').substring(0, 300)}${bill.description && bill.description.length > 300 ? '...' : ''}</p>
+                        <div class="bill-keywords">
+                            ${keywordTags}
+                            ${relevanceTag}
+                        </div>
+                    `;
+                    
+                    billsGrid.appendChild(billCard);
+                });
+            }
+            
+            updatePagination();
+            addDebug(`Displayed ${billsToShow.length} bills (page ${currentPage})`);
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            if (!pagination) return;
+            
+            const totalPages = Math.ceil(filteredBills.length / billsPerPage);
+            
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            pagination.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.textContent = '← Previous';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayBills();
+                }
+            });
+            pagination.appendChild(prevBtn);
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                    pageBtn.textContent = i;
+                    pageBtn.addEventListener('click', () => {
+                        currentPage = i;
+                        displayBills();
+                    });
+                    pagination.appendChild(pageBtn);
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '8px';
+                    pagination.appendChild(ellipsis);
+                }
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.textContent = 'Next →';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayBills();
+                }
+            });
+            pagination.appendChild(nextBtn);
+        }
+
+        async function loadSyncStatus() {
             addDebug('Loading sync status...');
             const syncStatus = document.getElementById('syncStatus');
             
             if (!currentUser || currentUser.role !== 'admin') {
                 if (syncStatus) {
-                    syncStatus.innerHTML = '📊 Bills loaded from database';
+                    syncStatus.innerHTML = '📊 Bills loaded from database • Ready to search and filter';
                 }
                 return;
             }
             
-            fetch('/api/admin/sync-status', {
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch('/api/admin/sync-status', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
                 addDebug(`Sync status loaded: ${data.totalBills} total bills`);
-                updateSyncStatus(data);
-            })
-            .catch(error => {
+                
+                if (syncStatus) {
+                    const lastSync = data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
+                    const isRunning = data.currentlyRunning ? ' • 🔄 Sync in progress' : '';
+                    
+                    syncStatus.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
+                }
+            } catch (error) {
                 addDebug(`Error loading sync status: ${error.message}`);
                 if (syncStatus) {
-                    syncStatus.innerHTML = '⚠️ Sync status unavailable';
+                    syncStatus.innerHTML = '⚠️ Sync status unavailable • System operational';
                 }
-            });
-        }
-
-        function updateSyncStatus(data) {
-            const statusDiv = document.getElementById('syncStatus');
-            if (statusDiv) {
-                statusDiv.innerHTML = `
-                    📊 Total Bills: ${data.totalBills || 0} | 
-                    🤖 LegiScan: ${data.legiscanBills || 0} | 
-                    ✋ Manual: ${data.manualBills || 0} | 
-                    🕒 Last Sync: ${data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never'}
-                `;
             }
         }
 
-        function displayBills(bills) {
-            const container = document.getElementById('billsContainer');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            addDebug(`Displaying ${bills.length} bills`);
-
-            if (bills.length === 0) {
-                container.innerHTML = '<p>No bills found. The system may still be syncing or there might be API issues.</p>';
+        async function syncLegiScan() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required for manual sync', true);
                 return;
             }
-
-            bills.forEach(bill => {
-                const billDiv = document.createElement('div');
-                billDiv.className = 'bill-item';
-                billDiv.innerHTML = `
-                    <div class="bill-title">${bill.billNumber || 'Unknown'} - ${bill.title || 'No title'}</div>
-                    <div class="bill-description">
-                        <strong>State:</strong> ${bill.stateCode || 'Unknown'} | 
-                        <strong>Status:</strong> ${bill.status || 'Unknown'} | 
-                        <strong>Source:</strong> ${bill.sourceType || 'Unknown'}
-                        ${bill.relevanceScore ? ` | <strong>Relevance:</strong> ${bill.relevanceScore}` : ''}
-                    </div>
-                    <div style="margin-top: 10px; font-size: 14px; color: #555;">
-                        ${bill.description || 'No description available'}
-                    </div>
-                `;
-                container.appendChild(billDiv);
-            });
+            
+            const syncBtn = document.getElementById('syncBtn');
+            if (!syncBtn) return;
+            
+            addDebug('Starting manual LegiScan sync...');
+            
+            syncBtn.disabled = true;
+            syncBtn.textContent = 'Syncing...';
+            
+            try {
+                const response = await fetch('/api/admin/sync-bills', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                addDebug(`Sync initiated: ${data.message}`);
+                showMessage('LegiScan sync started in background. Check back in a few minutes.', false);
+                
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    loadDashboard();
+                }, 5000);
+                
+            } catch (error) {
+                addDebug(`Sync error: ${error.message}`);
+                showMessage(`Sync failed: ${error.message}`, true);
+            } finally {
+                setTimeout(() => {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = 'Sync LegiScan';
+                }, 3000);
+            }
         }
 
         // Initialize app when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             addDebug('DOM loaded, setting up app...');
             
-            // Clear any existing auth data
             clearAuthData();
-            
-            // Show login screen
             showLogin();
             
             // Set up event listeners
@@ -647,6 +1126,11 @@
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             const passwordInput = document.getElementById('password');
+            const searchBtn = document.getElementById('searchBtn');
+            const syncBtn = document.getElementById('syncBtn');
+            const searchInput = document.getElementById('searchInput');
+            const stateFilter = document.getElementById('stateFilter');
+            const statusFilter = document.getElementById('statusFilter');
             
             if (testConnectionBtn) {
                 testConnectionBtn.addEventListener('click', testConnection);
@@ -675,6 +1159,40 @@
                     }
                 });
                 addDebug('Password enter key listener added');
+            }
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', filterAndDisplayBills);
+                addDebug('Search button listener added');
+            }
+            
+            if (syncBtn) {
+                syncBtn.addEventListener('click', syncLegiScan);
+                addDebug('Sync button listener added');
+            }
+            
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        filterAndDisplayBills();
+                    }
+                });
+                searchInput.addEventListener('input', function() {
+                    // Debounced search
+                    clearTimeout(this.searchTimeout);
+                    this.searchTimeout = setTimeout(filterAndDisplayBills, 500);
+                });
+                addDebug('Search input listeners added');
+            }
+            
+            if (stateFilter) {
+                stateFilter.addEventListener('change', filterAndDisplayBills);
+                addDebug('State filter listener added');
+            }
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterAndDisplayBills);
+                addDebug('Status filter listener added');
             }
             
             addDebug('All event listeners set up');

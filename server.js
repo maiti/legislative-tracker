@@ -50,7 +50,7 @@ const sequelize = new Sequelize(process.env.DATABASE_URL || 'sqlite::memory:', {
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY || '65c8d4470aa39a31e376e82db13f1e72';
 const LEGISCAN_BASE_URL = 'https://api.legiscan.com';
 
-// Keywords for tracking relevant legislation
+// Enhanced Keywords for tracking relevant legislation (from your requirements)
 const TRACKING_KEYWORDS = [
   'Financial crimes', 'Fraud investigation', 'Anti-money laundering', 'AML',
   'Economic crimes', 'White-collar crime', 'Asset forfeiture', 'Illicit finance',
@@ -59,7 +59,7 @@ const TRACKING_KEYWORDS = [
   'Technical assistance', 'Capacity building', 'Justice assistance grants',
   'Training and technical assistance', 'TTA', 'Evidence-based practices',
   'Criminal justice system improvement', 'Intelligence sharing',
-  'Multi-jurisdictional task forces', 'Cybercrime', 'Digital forensics'
+  'Multi-jurisdictional task forces', 'Cybercrime', 'Digital forensics', 'Intelligence'
 ];
 
 // Enhanced User Model
@@ -230,26 +230,34 @@ UserWatchlist.belongsTo(User);
 Bill.hasMany(UserWatchlist);
 UserWatchlist.belongsTo(Bill);
 
-// ===== LegiScan Service Class =====
+// ===== Enhanced LegiScan Service Class =====
 class LegiScanService {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.baseUrl = LEGISCAN_BASE_URL;
-    this.requestDelay = 500;
+    this.requestDelay = 1000; // Increased delay to avoid rate limits
   }
 
   async makeRequest(endpoint, params = {}) {
     try {
       const url = `${this.baseUrl}/?key=${this.apiKey}&${new URLSearchParams(params).toString()}`;
       
+      // Add delay between requests
       await new Promise(resolve => setTimeout(resolve, this.requestDelay));
       
-      const response = await axios.get(url, { timeout: 30000 });
+      console.log(`🌐 LegiScan API Request: ${url.substring(0, 100)}...`);
       
-      if (response.data.status === 'OK') {
+      const response = await axios.get(url, { 
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Legislative-Tracker-Bot/1.0'
+        }
+      });
+      
+      if (response.data && response.data.status === 'OK') {
         return response.data;
       } else {
-        throw new Error(`LegiScan API Error: ${response.data.alert?.message || 'Unknown error'}`);
+        throw new Error(`LegiScan API Error: ${response.data?.alert?.message || 'Unknown error'}`);
       }
     } catch (error) {
       if (error.response?.status === 429) {
@@ -275,12 +283,10 @@ class LegiScanService {
       
       if (data && data.searchresult) {
         if (Array.isArray(data.searchresult)) {
+          console.log(`   Found ${data.searchresult.length} results for "${keyword}"`);
           return data.searchresult;
         } else if (data.searchresult && data.searchresult.summary) {
           console.log(`   Search returned summary data only for "${keyword}"`);
-          return [];
-        } else {
-          console.log(`   Unexpected searchresult format for "${keyword}"`);
           return [];
         }
       }
@@ -295,6 +301,7 @@ class LegiScanService {
 
   async getBillDetails(billId) {
     try {
+      console.log(`📄 Fetching bill details for ID: ${billId}`);
       const data = await this.makeRequest('getBill', {
         op: 'getBill',
         id: billId
@@ -319,7 +326,12 @@ class LegiScanService {
       }
     });
 
-    const highPriorityKeywords = ['money laundering', 'financial crimes', 'asset forfeiture', 'aml'];
+    // High priority keywords get extra points
+    const highPriorityKeywords = [
+      'money laundering', 'financial crimes', 'asset forfeiture', 'aml',
+      'law enforcement training', 'financial intelligence', 'fraud investigation'
+    ];
+    
     highPriorityKeywords.forEach(keyword => {
       if (content.includes(keyword)) {
         relevanceScore += 2;
@@ -391,7 +403,7 @@ class LegiScanService {
 
 const legiScan = new LegiScanService(LEGISCAN_API_KEY);
 
-// ===== COMPLETELY FIXED Bill Sync Function =====
+// ===== Enhanced Bill Sync Function =====
 async function syncRelevantBills() {
   let syncRecord;
   
@@ -402,79 +414,86 @@ async function syncRelevantBills() {
       startTime: new Date()
     });
 
-    console.log('🔄 Starting LegiScan synchronization...');
+    console.log('🔄 Starting Enhanced LegiScan synchronization...');
     
     let totalFound = 0;
     let totalAdded = 0;
     let totalUpdated = 0;
 
+    // Process keywords in smaller batches to avoid rate limits
     const keywordBatches = [];
-    for (let i = 0; i < TRACKING_KEYWORDS.length; i += 2) {
-      keywordBatches.push(TRACKING_KEYWORDS.slice(i, i + 2));
+    for (let i = 0; i < TRACKING_KEYWORDS.length; i += 3) {
+      keywordBatches.push(TRACKING_KEYWORDS.slice(i, i + 3));
     }
 
-    for (const batch of keywordBatches) {
+    for (const [batchIndex, batch] of keywordBatches.entries()) {
+      console.log(`📦 Processing batch ${batchIndex + 1}/${keywordBatches.length}`);
+      
       for (const keyword of batch) {
         try {
           console.log(`🔍 Searching for: "${keyword}"`);
           
+          // Search for current year and previous year
           const currentYear = new Date().getFullYear();
-          const searchResults = await legiScan.searchBills(keyword, 'ALL', currentYear);
+          const years = [currentYear, currentYear - 1];
           
-          const validResults = Array.isArray(searchResults) ? searchResults : [];
-          
-          if (validResults.length === 0) {
-            console.log(`   No bills found for "${keyword}"`);
-            continue;
-          }
+          for (const year of years) {
+            const searchResults = await legiScan.searchBills(keyword, 'ALL', year);
+            
+            if (!Array.isArray(searchResults) || searchResults.length === 0) {
+              console.log(`   No bills found for "${keyword}" in ${year}`);
+              continue;
+            }
 
-          totalFound += validResults.length;
-          console.log(`   Found ${validResults.length} bills for "${keyword}"`);
+            totalFound += searchResults.length;
+            console.log(`   Found ${searchResults.length} bills for "${keyword}" in ${year}`);
 
-          for (const result of validResults.slice(0, 2)) {
-            try {
-              if (!result || !result.bill_id) {
-                console.log('   Skipping invalid result');
-                continue;
-              }
+                            // Process up to 3 bills per keyword per year to avoid overwhelming
+            for (const result of searchResults.slice(0, 3)) {
+              try {
+                if (!result || !result.bill_id) {
+                  console.log('   Skipping invalid result');
+                  continue;
+                }
 
-              const billDetails = await legiScan.getBillDetails(result.bill_id);
-              if (!billDetails) {
-                console.log(`   No details found for bill ${result.bill_id}`);
-                continue;
-              }
+                const billDetails = await legiScan.getBillDetails(result.bill_id);
+                if (!billDetails) {
+                  console.log(`   No details found for bill ${result.bill_id}`);
+                  continue;
+                }
 
-              const relevanceAnalysis = legiScan.analyzeRelevance(
-                billDetails.title || '',
-                billDetails.description || ''
-              );
+                const relevanceAnalysis = legiScan.analyzeRelevance(
+                  billDetails.title || '',
+                  billDetails.description || ''
+                );
 
-              if (relevanceAnalysis.relevanceScore < 1) {
-                console.log(`   Low relevance score for bill ${result.bill_id}`);
-                continue;
-              }
+                if (relevanceAnalysis.relevanceScore < 1) {
+                  console.log(`   Low relevance score for bill ${result.bill_id}`);
+                  continue;
+                }
 
-              const formattedBill = legiScan.formatBillForDatabase(billDetails, relevanceAnalysis);
+                const formattedBill = legiScan.formatBillForDatabase(billDetails, relevanceAnalysis);
 
-              const existingBill = await Bill.findOne({
-                where: { legiscanId: formattedBill.legiscanId }
-              });
-
-              if (existingBill) {
-                await existingBill.update({
-                  ...formattedBill,
-                  createdAt: existingBill.createdAt
+                const existingBill = await Bill.findOne({
+                  where: { legiscanId: formattedBill.legiscanId }
                 });
-                totalUpdated++;
-                console.log(`   ✅ Updated: ${formattedBill.billNumber}`);
-              } else {
-                await Bill.create(formattedBill);
-                totalAdded++;
-                console.log(`   ✨ Added: ${formattedBill.billNumber}`);
-              }
 
-            } catch (error) {
-              console.error(`Error processing bill ${result.bill_id}:`, error.message);
+                if (existingBill) {
+                  await existingBill.update({
+                    ...formattedBill,
+                    createdAt: existingBill.createdAt
+                  });
+                  totalUpdated++;
+                  console.log(`   ✅ Updated: ${formattedBill.billNumber}`);
+                } else {
+                  await Bill.create(formattedBill);
+                  totalAdded++;
+                  console.log(`   ✨ Added: ${formattedBill.billNumber}`);
+                }
+
+              } catch (error) {
+                console.error(`Error processing bill ${result.bill_id}:`, error.message);
+              }
             }
           }
         } catch (error) {
@@ -482,7 +501,11 @@ async function syncRelevantBills() {
         }
       }
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Longer delay between batches
+      if (batchIndex < keywordBatches.length - 1) {
+        console.log('⏳ Waiting between batches...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
     }
 
     const safeTotal = isNaN(totalFound) ? 0 : totalFound;
@@ -560,11 +583,12 @@ const authenticateToken = async (req, res, next) => {
 // API endpoint for information
 app.get('/api', (req, res) => {
   res.json({ 
-    message: 'Legislative Tracker API with LegiScan Integration', 
+    message: 'Legislative Tracker API with Enhanced LegiScan Integration', 
     status: 'OK',
     timestamp: new Date().toISOString(),
-    version: '2.0.0',
-    features: ['User Management', 'Bill Tracking', 'LegiScan Integration', 'Automated Sync'],
+    version: '2.1.0',
+    features: ['User Management', 'Bill Tracking', 'Enhanced LegiScan Integration', 'Automated Sync', 'Advanced Search'],
+    keywords: TRACKING_KEYWORDS.length,
     endpoints: [
       'POST /api/auth/register',
       'POST /api/auth/login', 
@@ -587,11 +611,12 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     database: 'connected',
-    legiscan: 'active'
+    legiscan: 'active',
+    keywords_tracking: TRACKING_KEYWORDS.length
   });
 });
 
-// FIXED Auth routes with detailed logging
+// Authentication routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, organization } = req.body;
@@ -643,7 +668,6 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
     console.log(`🔐 LOGIN REQUEST for: ${email}`);
-    console.log(`🔐 Request body:`, { email: email || 'missing', password: password ? 'provided' : 'missing' });
 
     if (!email || !password) {
       console.log(`❌ Missing credentials for: ${email}`);
@@ -694,8 +718,6 @@ app.post('/api/auth/login', async (req, res) => {
       }
     };
 
-    console.log(`📤 Sending response:`, { ...response, accessToken: 'HIDDEN' });
-
     res.json(response);
   } catch (error) {
     console.error('❌ LOGIN ERROR:', error);
@@ -707,16 +729,19 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });
 
-// Bills routes
+// Enhanced Bills routes
 app.get('/api/bills', authenticateToken, async (req, res) => {
   try {
+    console.log(`📄 Bills request from user: ${req.user.email}`);
+    
     const { 
       search, state, status, minRelevance = 0, page = 1, limit = 20,
-      sortBy = 'createdAt', sortOrder = 'DESC', source = 'all'
+      sortBy = 'relevanceScore', sortOrder = 'DESC', source = 'all'
     } = req.query;
 
     const where = { isActive: true };
     
+    // Search functionality
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
@@ -726,18 +751,22 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       ];
     }
 
-    if (state && state !== 'ALL') {
+    // State filter
+    if (state && state !== 'all') {
       where.stateCode = state;
     }
 
+    // Status filter
     if (status && status !== 'all') {
       where.status = { [Op.iLike]: `%${status}%` };
     }
 
+    // Relevance filter
     if (minRelevance > 0) {
       where.relevanceScore = { [Op.gte]: parseInt(minRelevance) };
     }
 
+    // Source filter
     if (source !== 'all') {
       where.sourceType = source;
     }
@@ -751,6 +780,23 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       offset: offset
     });
 
+    // Calculate statistics
+    const totalBills = await Bill.count({ where: { isActive: true } });
+    const legiscanBills = await Bill.count({ 
+      where: { 
+        isActive: true, 
+        sourceType: 'legiscan' 
+      } 
+    });
+    const manualBills = await Bill.count({ 
+      where: { 
+        isActive: true, 
+        sourceType: 'manual' 
+      } 
+    });
+
+    console.log(`📊 Returning ${bills.rows.length} bills (${bills.count} total matching criteria)`);
+
     res.json({
       bills: bills.rows,
       pagination: {
@@ -761,9 +807,10 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       },
       filters: { search, state, status, minRelevance, source },
       stats: {
-        totalBills: bills.count,
-        legiscanBills: bills.rows.filter(b => b.sourceType === 'legiscan').length,
-        manualBills: bills.rows.filter(b => b.sourceType === 'manual').length
+        totalBills,
+        legiscanBills,
+        manualBills,
+        highRelevance: bills.rows.filter(b => (b.relevanceScore || 0) >= 3).length
       }
     });
   } catch (error) {
@@ -873,14 +920,16 @@ app.post('/api/admin/sync-bills', authenticateToken, async (req, res) => {
 
     console.log(`🔄 Manual sync triggered by ${req.user.email}`);
     
+    // Start sync in background
     syncRelevantBills().catch(error => {
       console.error('Background sync failed:', error);
     });
     
     res.json({
-      message: 'Bill synchronization started in background',
+      message: 'Enhanced LegiScan synchronization started in background',
       status: 'initiated',
-      timestamp: new Date()
+      timestamp: new Date(),
+      keywordsTracking: TRACKING_KEYWORDS.length
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to start sync', details: error.message });
@@ -899,13 +948,14 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
     });
 
     const totalBills = await Bill.count();
-    const legiscanBills = await Bill.count({ where: { legiscanId: { [Op.ne]: null } } });
+    const legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
 
     res.json({
       apiStatus: 'active',
       totalBills,
       legiscanBills,
       manualBills: totalBills - legiscanBills,
+      keywordsTracking: TRACKING_KEYWORDS.length,
       recentSyncs: recentSyncs.length,
       lastSync: recentSyncs[0]?.endTime || null,
       currentlyRunning: recentSyncs.some(sync => sync.status === 'running'),
@@ -928,12 +978,10 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
 
 // ===== FRONTEND ROUTES (MUST COME AFTER API ROUTES) =====
 
-// Root redirect to dashboard
 app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
 
-// Dashboard route - serve the frontend HTML
 app.get('/dashboard', (req, res) => {
   const frontendPath = path.join(__dirname, 'frontend.html');
   if (require('fs').existsSync(frontendPath)) {
@@ -947,14 +995,11 @@ app.get('/dashboard', (req, res) => {
   }
 });
 
-// Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/build')));
 }
 
-// CATCHALL: Only serve frontend for non-API routes
 app.get('*', (req, res) => {
-  // Don't serve frontend for API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
@@ -980,6 +1025,7 @@ async function startServer() {
     await sequelize.sync({ force: false });
     console.log('✅ Database synced');
 
+    // Create admin user
     const adminPassword = await bcrypt.hash('admin123', 12);
     const [admin] = await User.findOrCreate({
       where: { email: 'admin@example.com' },
@@ -993,34 +1039,61 @@ async function startServer() {
       }
     });
 
+    // Create enhanced sample bills based on your Excel example
     const existingBills = await Bill.count();
     if (existingBills === 0) {
       const sampleBills = [
         {
           stateCode: 'US',
+          billNumber: 'H.R.9999',
+          title: 'Retired Law Enforcement Officers Continuing Service Act',
+          description: 'To amend the Omnibus Crime Control and Safe Streets Act of 1968 to establish a grant program to help law enforcement agencies with civilian law enforcement tasks, including assisting in financial crimes investigations and compliance with reporting requirements.',
+          status: 'Introduced',
+          progressPercentage: 25,
+          introducedDate: '2025-06-09',
+          fundsAllocated: 'Grant Program',
+          sourceType: 'manual',
+          keywords: 'Law enforcement training, Financial crimes, Grant Program',
+          relevanceScore: 8
+        },
+        {
+          stateCode: 'US',
           billNumber: 'HR1577',
           title: 'Stop Fentanyl Money Laundering Act',
-          description: 'A bill to strengthen financial crime enforcement against fentanyl trafficking',
+          description: 'A bill to strengthen financial crime enforcement against fentanyl trafficking and money laundering operations.',
           status: 'In Committee',
           progressPercentage: 35,
           introducedDate: '2025-03-21',
           fundsAllocated: 'TBD',
           sourceType: 'manual',
-          keywords: 'Financial crimes, Money laundering prevention',
-          relevanceScore: 5
+          keywords: 'Financial crimes, Money laundering prevention, Anti-money laundering',
+          relevanceScore: 9
         },
         {
           stateCode: 'CA',
           billNumber: 'AB603',
-          title: 'Asset Forfeiture: Human Trafficking',
-          description: 'Amends California Control of Profits of Organized Crime Act',
+          title: 'Asset Forfeiture: Human Trafficking Enhancement',
+          description: 'Amends California Control of Profits of Organized Crime Act to enhance asset forfeiture capabilities for human trafficking cases.',
           status: 'Committee Review',
           progressPercentage: 15,
           introducedDate: '2025-03-19',
           fundsAllocated: 'Not specified',
           sourceType: 'manual',
-          keywords: 'Asset forfeiture, Law enforcement training',
-          relevanceScore: 3
+          keywords: 'Asset forfeiture, Law enforcement training, Intelligence sharing',
+          relevanceScore: 7
+        },
+        {
+          stateCode: 'US',
+          billNumber: 'S.2150',
+          title: 'Financial Intelligence Enhancement Act',
+          description: 'To provide additional resources and training for financial intelligence units and enhance cooperation between federal and state law enforcement.',
+          status: 'Introduced',
+          progressPercentage: 20,
+          introducedDate: '2025-05-15',
+          fundsAllocated: '$50 million appropriation',
+          sourceType: 'manual',
+          keywords: 'Financial intelligence, Law enforcement training, Technical assistance',
+          relevanceScore: 8
         }
       ];
 
@@ -1030,10 +1103,11 @@ async function startServer() {
           defaults: billData
         });
       }
-      console.log('✅ Sample bills created');
+      console.log('✅ Enhanced sample bills created');
     }
 
     console.log('👤 Admin login: admin@example.com / admin123');
+    console.log(`🔍 Tracking ${TRACKING_KEYWORDS.length} keywords for legislative monitoring`);
     console.log('🔒 CSP configured to allow inline scripts');
     
     app.listen(PORT, () => {
@@ -1041,20 +1115,22 @@ async function startServer() {
       console.log(`📡 API available at: http://localhost:${PORT}/api`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
       console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
-      console.log(`🔧 LegiScan Status: Active - Syncing every 2 minutes`);
+      console.log(`🔧 Enhanced LegiScan Integration: Active`);
     });
 
+    // Schedule automatic sync every 30 minutes (more reasonable than 2 minutes)
     setTimeout(() => {
-      console.log('📅 Scheduling automatic bill sync every 2 minutes...');
-      cron.schedule('*/2 * * * *', async () => {
-        console.log('🕐 Running scheduled bill sync...');
+      console.log('📅 Scheduling automatic bill sync every 30 minutes...');
+      cron.schedule('*/30 * * * *', async () => {
+        console.log('🕐 Running scheduled enhanced bill sync...');
         await syncRelevantBills();
       });
 
+      // Run initial sync after 1 minute to let server fully start
       setTimeout(async () => {
-        console.log('🚀 Running initial bill sync...');
+        console.log('🚀 Running initial enhanced bill sync...');
         await syncRelevantBills();
-      }, 30000);
+      }, 60000);
     }, 5000);
     
   } catch (error) {
