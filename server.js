@@ -897,140 +897,32 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
 });
 
 // Dashboard route
+// ===== REPLACE YOUR EXISTING DASHBOARD AND CATCH-ALL ROUTES WITH THIS =====
+
+// Dashboard route - serves your original frontend
 app.get('/dashboard', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Legislative Tracker with LegiScan</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f7fa; }
-            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .header { border-bottom: 2px solid #007cba; padding-bottom: 20px; margin-bottom: 30px; }
-            .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
-            .feature-card { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007cba; }
-            .endpoint-list { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; }
-            .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-            .status-good { background: #d4edda; color: #155724; }
-            .status-warning { background: #fff3cd; color: #856404; }
-            h1 { color: #007cba; margin: 0; }
-            h3 { color: #495057; margin-top: 0; }
-            code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; }
-            .test-section { background: #e8f4f8; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>📊 Legislative Tracker API v2.0</h1>
-                <p>Enhanced with automated LegiScan integration for real-time bill tracking</p>
-                <p><strong>API Base URL:</strong> <code>${req.protocol}://${req.get('host')}</code></p>
-                <p><strong>Status:</strong> <span class="status-badge status-good">Online & Active</span></p>
-            </div>
-            
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h3>🔐 Authentication System</h3>
-                    <p><strong>Admin Login:</strong></p>
-                    <p>Email: <code>admin@example.com</code></p>
-                    <p>Password: <code>admin123</code></p>
-                </div>
-                
-                <div class="feature-card">
-                    <h3>🏛️ LegiScan Integration</h3>
-                    <p>Status: <span class="status-badge status-good">Active</span></p>
-                    <p>Sync Frequency: Every 2 minutes</p>
-                    <p>Automatic bill discovery and tracking across all 50 states</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h3>🎯 Smart Keyword Tracking</h3>
-                    <p>Monitors legislation for:</p>
-                    <p>Financial crimes, AML, Asset forfeiture, Law enforcement training, and more</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h3>⚡ Automated Sync</h3>
-                    <p>Runs every 2 minutes automatically</p>
-                    <p>Processes ~2 bills per keyword per sync</p>
-                    <p>Manual sync available for admins</p>
-                </div>
-            </div>
-            
-            <div class="test-section">
-                <h3>🧪 Quick API Tests</h3>
-                <p>Test these endpoints directly in your browser:</p>
-                <ul>
-                    <li><a href="/health" target="_blank">Health Check</a> - Server status</li>
-                    <li><a href="/api" target="_blank">API Info</a> - Available endpoints</li>
-                    <li><a href="/dashboard" target="_blank">Dashboard</a> - This page</li>
-                </ul>
-                <p><em>Note: Bill and user endpoints require authentication tokens</em></p>
-            </div>
-            
-            <div class="endpoint-list">
-                <h3>🔗 Available API Endpoints</h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 10px;">
-                    <div>
-                        <strong>Authentication:</strong><br>
-                        <code>POST /api/auth/register</code><br>
-                        <code>POST /api/auth/login</code><br>
-                        <code>GET /api/auth/profile</code>
-                    </div>
-                    <div>
-                        <strong>Bills (Enhanced):</strong><br>
-                        <code>GET /api/bills</code> (with filtering)<br>
-                        <code>GET /api/bills/:id</code><br>
-                        <code>POST /api/bills/:id/watch</code>
-                    </div>
-                    <div>
-                        <strong>Admin Functions:</strong><br>
-                        <code>GET /api/admin/users/pending</code><br>
-                        <code>POST /api/admin/sync-bills</code><br>
-                        <code>GET /api/admin/sync-status</code>
-                    </div>
-                    <div>
-                        <strong>System:</strong><br>
-                        <code>GET /health</code><br>
-                        <code>GET /api</code> (API info)<br>
-                        <code>GET /dashboard</code> (this page)
-                    </div>
-                </div>
-            </div>
-            
-            <div style="margin-top: 30px; padding: 20px; background: #e8f4f8; border-radius: 8px;">
-                <h3>🚀 Getting Started</h3>
-                <ol>
-                    <li>Login with admin credentials above</li>
-                    <li>Trigger manual sync: <code>POST /api/admin/sync-bills</code></li>
-                    <li>Monitor sync progress: <code>GET /api/admin/sync-status</code></li>
-                    <li>Search enhanced bills: <code>GET /api/bills?search=money%20laundering</code></li>
-                    <li>The system automatically syncs every 2 minutes</li>
-                </ol>
-                <p><strong>✅ Your Legislative Tracker is now live and actively monitoring legislation!</strong></p>
-            </div>
-        </div>
-    </body>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, 'frontend.html'));
+});
+
+// Root route - redirects to dashboard  
+app.get('/', (req, res) => {
+  res.redirect('/dashboard');
 });
 
 // Serve static files (if frontend exists)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/build')));
-  
-  // Catch-all handler for React Router (only if frontend exists)
-  app.get('*', (req, res) => {
-    const frontendPath = path.join(__dirname, 'frontend/build', 'index.html');
-    if (require('fs').existsSync(frontendPath)) {
-      res.sendFile(frontendPath);
-    } else {
-      res.redirect('/dashboard');
-    }
-  });
 }
+
+// Catch-all handler - serves your frontend for any non-API routes
+app.get('*', (req, res) => {
+  const frontendPath = path.join(__dirname, 'frontend.html');
+  if (require('fs').existsSync(frontendPath)) {
+    res.sendFile(frontendPath);
+  } else {
+    res.redirect('/dashboard');
+  }
+});
 
 // ===== Server Startup =====
 const PORT = process.env.PORT || 3001;

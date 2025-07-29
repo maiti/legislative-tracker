@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegiScan Law Enforcement Training Legislation Tracker</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .auth-controls {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info {
+            font-size: 14px;
+            color: rgba(255,255,255,0.9);
+        }
+        .admin-badge {
+            background: rgba(46, 204, 113, 0.3);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            border: 1px solid rgba(46, 204, 113, 0.5);
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .sync-status {
+            background: rgba(52, 152, 219, 0.2);
+            color: white;
+            padding: 8px 20px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .sync-running {
+            background: rgba(241, 196, 15, 0.3);
+        }
+        .keywords {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            font-size: 14px;
+        }
+        .keywords-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .keywords-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .keyword-tag {
+            background: rgba(52, 152, 219, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .controls {
+            padding: 15px;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+        }
+        .state-select {
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            min-width: 120px;
+        }
+        .filter-btn {
+            padding: 8px 15px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .filter-btn:hover {
+            background: #2980b9;
+        }
+        .filter-btn.active {
+            background: #2980b9;
+        }
+        .sync-btn {
+            background: #e74c3c;
+            margin-left: auto;
+        }
+        .sync-btn:hover {
+            background: #c0392b;
+        }
+        .sync-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .bill-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .bill-url {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        .bill-url:hover {
+            text-decoration: underline;
+        }
+        .source-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-left: 5px;
+        }
+        .source-legiscan {
+            background: #9b59b6;
+            color: white;
+        }
+        .source-manual {
+            background: #95a5a6;
+            color: white;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-introduced {
+            background: #e8f4f8;
+            color: #2980b9;
+        }
+        .status-committee {
+            background: #fef9e7;
+            color: #f39c12;
+        }
+        .status-passed {
+            background: #eafaf1;
+            color: #27ae60;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60);
+            transition: width 0.3s ease;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-weight: 500;
+        }
+        .new-row {
+            background: #e8f5e8 !important;
+        }
+        .relevance-score {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        .loading-spinner {
+            border: 3px solid #ecf0f1;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .notes {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+        }
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .login-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-form h2 {
+            margin: 0 0 20px 0;
+            text-align: center;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .login-btn:hover {
+            background: #2980b9;
+        }
+        .login-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .demo-creds {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="loginOverlay" class="login-overlay" style="display: none;">
+        <div class="login-form">
+            <h2>Legislative Tracker Login</h2>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password">
+            </div>
+            <button id="loginBtn" class="login-btn">Sign In</button>
+            <div class="demo-creds">
+                <strong>Demo Credentials:</strong><br>
+                Email: admin@example.com<br>
+                Password: admin123
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="auth-controls">
+                <div class="user-info">
+                    <span id="userDisplay"></span>
+                    <span id="adminBadge" class="admin-badge" style="display: none;">Admin</span>
+                </div>
+                <button id="logoutBtn" class="logout-btn">Logout</button>
+            </div>
+            <h1>LegiScan Law Enforcement Training Legislation Tracker</h1>
+            <p>Real-time tracking of legislation related to training for law enforcement and financial crime prevention</p>
+        </div>
+        
+        <div id="syncStatus" class="sync-status">
+            Connecting to LegiScan API...
+        </div>
+        
+        <div class="keywords">
+            <div class="keywords-title">Key Search Terms:</div>
+            <div class="keywords-list">
+                <span class="keyword-tag">Financial crimes</span>
+                <span class="keyword-tag">Fraud investigation</span>
+                <span class="keyword-tag">Anti-money laundering (AML)</span>
+                <span class="keyword-tag">Economic crimes</span>
+                <span class="keyword-tag">White-collar crime</span>
+                <span class="keyword-tag">Asset forfeiture</span>
+                <span class="keyword-tag">Illicit finance</span>
+                <span class="keyword-tag">Investigative accounting</span>
+                <span class="keyword-tag">Forensic auditing</span>
+                <span class="keyword-tag">Financial intelligence</span>
+                <span class="keyword-tag">Money laundering prevention</span>
+                <span class="keyword-tag">Financial analysis training</span>
+                <span class="keyword-tag">Law enforcement training</span>
+                <span class="keyword-tag">Technical assistance</span>
+                <span class="keyword-tag">Capacity building</span>
+                <span class="keyword-tag">Justice assistance grants</span>
+                <span class="keyword-tag">Training and technical assistance (TTA)</span>
+                <span class="keyword-tag">Evidence-based practices</span>
+                <span class="keyword-tag">Criminal justice system improvement</span>
+                <span class="keyword-tag">Intelligence</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <input type="text" class="search-box" placeholder="Search bills by title, keywords, or state..." id="searchBox">
+            <select class="state-select" id="stateFilter">
+                <option value="ALL">All States</option>
+                <option value="US">Federal</option>
+                <option value="CA">California</option>
+                <option value="NY">New York</option>
+                <option value="TX">Texas</option>
+                <option value="FL">Florida</option>
+                <option value="CO">Colorado</option>
+                <option value="CT">Connecticut</option>
+            </select>
+            <button class="filter-btn" data-status="all">All</button>
+            <button class="filter-btn" data-status="Introduced">Introduced</button>
+            <button class="filter-btn" data-status="Committee">In Committee</button>
+            <button class="filter-btn" data-status="Passed">Passed</button>
+            <button id="syncBtn" class="filter-btn sync-btn" style="display: none;">⚡ Sync Now</button>
+        </div>
+        
+        <div class="table-container">
+            <div id="loadingIndicator" class="loading">
+                <div class="loading-spinner"></div>
+                Loading legislative data...
+            </div>
+            
+            <table id="billsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">State/Congress</th>
+                        <th style="width: 200px;">Bill Title & URL</th>
+                        <th style="width: 180px;">Status</th>
+                        <th style="width: 350px;">Description & Keywords</th>
+                        <th style="width: 120px;">Funds Allocated</th>
+                        <th style="width: 100px;">% Progression</th>
+                        <th style="width: 80px;">Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="billsTableBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="notes">
+            <h3>Live Integration Status:</h3>
+            <ul>
+                <li><strong>✅ API Integration:</strong> Connected to LegiScan API for real-time data</li>
+                <li><strong>🔄 Auto-Sync:</strong> Bills automatically updated every 2 minutes</li>
+                <li><strong>🎯 Smart Filtering:</strong> AI-powered relevance scoring for financial crime legislation</li>
+                <li><strong>📊 Enhanced Data:</strong> Progress tracking, keyword matching, and source attribution</li>
+                <li><strong>🔐 Secure Access:</strong> JWT authentication with admin controls</li>
+            </ul>
+            
+            <h4>New Features Added:</h4>
+            <ul>
+                <li><strong>Source Tracking:</strong> Bills marked as LegiScan (automated) or Manual (user-added)</li>
+                <li><strong>Relevance Scoring:</strong> Automatic scoring based on keyword matches</li>
+                <li><strong>Real-time Status:</strong> Live sync status updates and progress indicators</li>
+                <li><strong>Enhanced Search:</strong> Search across titles, descriptions, keywords, and bill numbers</li>
+                <li><strong>Admin Controls:</strong> Manual sync triggering and user management</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentUser = null;
+        let authToken = null;
+        let allBills = [];
+        let currentFilter = 'all';
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            setupEventListeners();
+        });
+
+        // Authentication functions
+        function checkAuth() {
+            authToken = localStorage.getItem('accessToken');
+            const userData = localStorage.getItem('user');
+            
+            if (authToken && userData) {
+                currentUser = JSON.parse(userData);
+                showMainInterface();
+                loadBills();
+                loadSyncStatus();
+            } else {
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        }
+
+        function showMainInterface() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('userDisplay').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+            
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminBadge').style.display = 'inline';
+                document.getElementById('syncBtn').style.display = 'block';
+            }
+        }
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('errorMessage');
+
+            if (!email || !password) {
+                showError('Please enter both email and password');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Signing In...';
+            errorDiv.style.display = 'none';
+
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.accessToken) {
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    currentUser = data.user;
+                    authToken = data.accessToken;
+                    showMainInterface();
+                    loadBills();
+                    loadSyncStatus();
+                } else {
+                    showError(data.error || 'Login failed');
+                }
+            })
+            .catch(error => {
+                showError('Network error. Please try again.');
+            })
+            .finally(() => {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Sign In';
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            currentUser = null;
+            authToken = null;
+            showLogin();
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Data loading functions
+        function loadBills() {
+            const searchTerm = document.getElementById('searchBox').value;
+            const stateFilter = document.getElementById('stateFilter').value;
+            
+            const url = new URL('/api/bills', window.location.origin);
+            if (searchTerm) url.searchParams.append('search', searchTerm);
+            if (stateFilter !== 'ALL') url.searchParams.append('state', stateFilter);
+            url.searchParams.append('limit', '50');
+
+            fetch(url, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            })
+            .then(response => response.json())
+            .then(data => {
+                allBills = data.bills || [];
+                displayBills();
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('billsTable').style.display = 'table';
+            })
+            .catch(error => {
+                console.error('Error loading bills:', error);
+                document.getElementById('loadingIndicator').innerHTML = '<p>Error loading bills. Please refresh the page.</p>';
+            });
+        }
+
+        function loadSyncStatus() {
+            if (currentUser.role !== 'admin') return;
+            
+            fetch('/api/admin/sync-status', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateSyncStatus(data);
+            })
+            .catch(error => {
+                console.error('Error loading sync status:', error);
+            });
+        }
+
+        function updateSyncStatus(data) {
+            const statusDiv = document.getElementById('syncStatus');
+            const isRunning = data.currentlyRunning;
+            
+            statusDiv.className = `sync-status ${isRunning ? 'sync-running' : ''}`;
+            statusDiv.innerHTML = `
+                📊 Total Bills: ${data.totalBills} | 
+                🤖 LegiScan: ${data.legiscanBills} | 
+                ✋ Manual: ${data.manualBills} | 
+                🕒 Last Sync: ${data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never'}
+                ${isRunning ? ' | ⚡ Syncing...' : ''}
+            `;
+        }
+
+        function displayBills() {
+            const tbody = document.getElementById('billsTableBody');
+            tbody.innerHTML = '';
+
+            const filteredBills = allBills.filter(bill => {
+                if (currentFilter === 'all') return true;
+                return bill.status && bill.status.toLowerCase().includes(currentFilter.toLowerCase());
+            });
+
+            filteredBills.forEach(bill => {
+                const row = createBillRow(bill);
+                tbody.appendChild(row);
+            });
+        }
+
+        function createBillRow(bill) {
+            const row = document.createElement('tr');
+            if (bill.sourceType === 'legiscan') {
+                row.classList.add('new-row');
+            }
+
+            const formatDate = (dateString) => {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleDateString();
+            };
+
+            const getStatusClass = (status) => {
+                if (!status) return 'status';
+                if (status.toLowerCase().includes('introduced')) return 'status status-introduced';
+                if (status.toLowerCase().includes('committee')) return 'status status-committee';
+                if (status.toLowerCase().includes('passed')) return 'status status-passed';
+                return 'status';
+            };
+
+            const highlightKeywords = (text) => {
+                if (!text) return '';
+                const keywords = ['financial crimes', 'money laundering', 'asset forfeiture', 'training', 'law enforcement'];
+                let highlighted = text;
+                keywords.forEach(keyword => {
+                    const regex = new RegExp(`(${keyword})`, 'gi');
+                    highlighted = highlighted.replace(regex, '<span class="highlight">$1</span>');
+                });
+                return highlighted;
+            };
+
+            row.innerHTML = `
+                <td>${bill.stateCode === 'US' ? 'US Congress' : bill.stateCode}</td>
+                <td>
+                    <div class="bill-title">${bill.billNumber} - ${bill.title}</div>
+                    ${bill.legiscanUrl ? `<a href="${bill.legiscanUrl}" target="_blank" class="bill-url">View on LegiScan</a>` : ''}
+                    <span class="source-badge ${bill.sourceType === 'legiscan' ? 'source-legiscan' : 'source-manual'}">
+                        ${bill.sourceType === 'legiscan' ? 'LegiScan' : 'Manual'}
+                    </span>
+                    ${bill.relevanceScore > 0 ? `<span class="relevance-score">Score: ${bill.relevanceScore}</span>` : ''}
+                </td>
+                <td><span class="${getStatusClass(bill.status)}">${bill.status || 'Unknown'}</span></td>
+                <td>${highlightKeywords(bill.description || 'No description available')}</td>
+                <td>${bill.fundsAllocated || 'Not specified'}</td>
+                <td>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${bill.progressPercentage || 0}%;"></div>
+                    </div>
+                    ${bill.progressPercentage || 0}%
+                </td>
+                <td>${formatDate(bill.lastSynced || bill.createdAt)}</td>
+            `;
+
+            return row;
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // Login form
+            document.getElementById('loginBtn').addEventListener('click', login);
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+
+            // Search
+            document.getElementById('searchBox').addEventListener('input', debounce(loadBills, 500));
+            document.getElementById('stateFilter').addEventListener('change', loadBills);
+
+            // Status filters
+            document.querySelectorAll('.filter-btn[data-status]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn[data-status]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.status;
+                    displayBills();
+                });
+            });
+
+            // Sync button
+            document.getElementById('syncBtn').addEventListener('click', triggerSync);
+        }
+
+        function triggerSync() {
+            const syncBtn = document.getElementById('syncBtn');
+            syncBtn.disabled = true;
+            syncBtn.textContent = 'Syncing...';
+
+            fetch('/api/admin/sync-bills', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Sync started! New bills will appear shortly.');
+                setTimeout(() => {
+                    loadBills();
+                    loadSyncStatus();
+                }, 2000);
+            })
+            .catch(error => {
+                alert('Sync failed: ' + error.message);
+            })
+            .finally(() => {
+                syncBtn.disabled = false;
+                syncBtn.textContent = '⚡ Sync Now';
+            });
+        }
+
+        // Utility functions
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Auto-refresh every 2 minutes
+        setInterval(() => {
+            if (authToken && currentUser) {
+                loadSyncStatus();
+                // Optionally reload bills if no search/filter is active
+                if (!document.getElementById('searchBox').value) {
+                    loadBills();
+                }
+            }
+        }, 120000); // 2 minutes
+    </script>
+</body>
+</html>
