@@ -11,7 +11,7 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
+// CRITICAL: Set up middleware in correct order
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
@@ -539,12 +539,9 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// ===== API ROUTES =====
+// ===== API ROUTES (MUST COME FIRST) =====
 
-app.get('/', (req, res) => {
-  res.redirect('/dashboard');
-});
-
+// API endpoint for information
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'Legislative Tracker API with LegiScan Integration', 
@@ -568,6 +565,7 @@ app.get('/api', (req, res) => {
   });
 });
 
+// Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -577,17 +575,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// FIXED Auth routes
+// FIXED Auth routes with detailed logging
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, organization } = req.body;
 
+    console.log(`📝 Registration attempt for: ${email}`);
+
     if (!email || !password || !firstName || !lastName) {
+      console.log(`❌ Missing required fields for registration: ${email}`);
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
+      console.log(`❌ Email already registered: ${email}`);
       return res.status(409).json({ error: 'Email already registered' });
     }
 
@@ -601,6 +603,8 @@ app.post('/api/auth/register', async (req, res) => {
       organization,
       status: 'pending'
     });
+
+    console.log(`✅ Registration successful for: ${email}`);
 
     res.status(201).json({
       message: 'Registration successful. Account pending admin approval.',
@@ -622,17 +626,21 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log(`🔐 LOGIN REQUEST for: ${email}`);
+    console.log(`🔐 Request body:`, { email: email || 'missing', password: password ? 'provided' : 'missing' });
+
     if (!email || !password) {
+      console.log(`❌ Missing credentials for: ${email}`);
       return res.status(400).json({ error: 'Email and password are required' });
     }
-
-    console.log(`🔐 Login attempt for: ${email}`);
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
       console.log(`❌ User not found: ${email}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    console.log(`🔍 User found: ${email}, Status: ${user.status}, Role: ${user.role}`);
 
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
@@ -654,9 +662,9 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    console.log(`✅ Login successful for: ${email}`);
+    console.log(`✅ LOGIN SUCCESSFUL for: ${email}`);
 
-    res.json({
+    const response = {
       message: 'Login successful',
       accessToken,
       user: {
@@ -668,9 +676,13 @@ app.post('/api/auth/login', async (req, res) => {
         status: user.status,
         organization: user.organization
       }
-    });
+    };
+
+    console.log(`📤 Sending response:`, { ...response, accessToken: 'HIDDEN' });
+
+    res.json(response);
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ LOGIN ERROR:', error);
     res.status(500).json({ error: 'Login failed', details: error.message });
   }
 });
@@ -898,21 +910,39 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
   }
 });
 
-// Frontend routes
+// ===== FRONTEND ROUTES (MUST COME AFTER API ROUTES) =====
+
+// Root redirect to dashboard
+app.get('/', (req, res) => {
+  res.redirect('/dashboard');
+});
+
+// Dashboard route - serve the frontend HTML
 app.get('/dashboard', (req, res) => {
   const frontendPath = path.join(__dirname, 'frontend.html');
   if (require('fs').existsSync(frontendPath)) {
     res.sendFile(frontendPath);
   } else {
-    res.json({ message: 'Legislative Tracker API', status: 'Frontend not found' });
+    res.json({ 
+      message: 'Legislative Tracker API',
+      status: 'Frontend not found',
+      redirect: '/api'
+    });
   }
 });
 
+// Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/build')));
 }
 
+// CATCHALL: Only serve frontend for non-API routes
 app.get('*', (req, res) => {
+  // Don't serve frontend for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
   const frontendPath = path.join(__dirname, 'frontend.html');
   if (require('fs').existsSync(frontendPath)) {
     res.sendFile(frontendPath);
