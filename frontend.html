@@ -516,7 +516,7 @@
             font-weight: 600;
             color: #2c3e50;
         }
-        .form-group input {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 14px 18px;
             border: 2px solid #e9ecef;
@@ -524,11 +524,16 @@
             font-size: 14px;
             box-sizing: border-box;
             transition: border-color 0.2s;
+            font-family: inherit;
         }
-        .form-group input:focus {
+        .form-group input:focus, .form-group textarea:focus {
             outline: none;
             border-color: #3498db;
             box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
         }
         .login-btn {
             width: 100%;
@@ -666,6 +671,31 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+        /* Add Bill Modal Styles */
+        .add-bill-form {
+            max-width: 600px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .form-note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .required {
+            color: #e74c3c;
+        }
     </style>
 </head>
 <body>
@@ -682,7 +712,7 @@
                 <button id="testLegiScanBtn" class="test-btn-small">Test LegiScan</button>
                 <button id="directApiTestBtn" class="test-btn-small">Direct API</button>
                 <button id="simpleApiTestBtn" class="test-btn-small">Simple API</button>
-                <button id="addTestBillBtn" class="test-btn-small">Add Test Bill</button>
+                <button id="addTestBillBtn" class="test-btn-small">Add Bill</button>
             </div>
             
             <div class="form-group">
@@ -696,7 +726,7 @@
             <button id="loginBtn" class="login-btn">Sign In</button>
             
             <div class="demo-creds">
-                <strong>Enhanced Version 3.1.0 Fixed</strong><br>
+                <strong>Enhanced Version 3.1.0 - FIXED API</strong><br>
                 Demo Credentials:<br>
                 Email: admin@example.com<br>
                 Password: admin123
@@ -704,10 +734,98 @@
         </div>
     </div>
 
+    <!-- Add Bill Modal -->
+    <div id="addBillOverlay" class="login-overlay" style="display: none;">
+        <div class="login-form add-bill-form">
+            <h2>Add New Bill</h2>
+            <div id="addBillErrorMessage" class="error-alert" style="display: none;"></div>
+            <div id="addBillSuccessMessage" class="success-message" style="display: none;"></div>
+            
+            <div class="form-group">
+                <label for="addBillNumber">Bill Number: <span class="required">*</span></label>
+                <input type="text" id="addBillNumber" placeholder="e.g., HB123, SB456, H.R.789" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="addBillTitle">Bill Title: <span class="required">*</span></label>
+                <textarea id="addBillTitle" placeholder="Enter the full bill title" required style="min-height: 60px;"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="addBillDescription">Description:</label>
+                <textarea id="addBillDescription" placeholder="Enter bill description or summary" style="min-height: 100px;"></textarea>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="addBillState">State/Jurisdiction:</label>
+                    <select id="addBillState" class="filter-select">
+                        <option value="CUSTOM">Custom/Other</option>
+                        <option value="US">Federal</option>
+                        <option value="CA">California</option>
+                        <option value="TX">Texas</option>
+                        <option value="FL">Florida</option>
+                        <option value="NY">New York</option>
+                        <option value="IL">Illinois</option>
+                        <option value="PA">Pennsylvania</option>
+                        <option value="OH">Ohio</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="addBillStatus">Status:</label>
+                    <select id="addBillStatus" class="filter-select">
+                        <option value="Introduced">Introduced</option>
+                        <option value="In Committee">In Committee</option>
+                        <option value="Committee Review">Committee Review</option>
+                        <option value="Floor Consideration">Floor Consideration</option>
+                        <option value="Passed Chamber">Passed Chamber</option>
+                        <option value="Sent to Other Chamber">Sent to Other Chamber</option>
+                        <option value="Enrolled/Enacted">Enrolled/Enacted</option>
+                        <option value="Vetoed">Vetoed</option>
+                        <option value="Failed/Dead">Failed/Dead</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="addBillProgress">Progress Percentage:</label>
+                    <input type="number" id="addBillProgress" min="0" max="100" value="15" placeholder="0-100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="addBillRelevance">Relevance Score:</label>
+                    <input type="number" id="addBillRelevance" min="0" max="10" value="5" placeholder="0-10">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="addBillFunding">Funding/Appropriation:</label>
+                <input type="text" id="addBillFunding" placeholder="e.g., $5 million appropriation, Grant funding, Not specified">
+            </div>
+            
+            <div class="form-group">
+                <label for="addBillKeywords">Keywords (comma-separated):</label>
+                <input type="text" id="addBillKeywords" placeholder="e.g., law enforcement training, financial crimes, grant funding">
+            </div>
+            
+            <div class="form-actions">
+                <button id="saveBillBtn" class="login-btn" style="flex: 1;">Save Bill</button>
+                <button id="cancelAddBillBtn" class="logout-btn" style="flex: 1; background: #95a5a6;">Cancel</button>
+            </div>
+            
+            <div class="form-note">
+                <strong>Note:</strong> Fields marked with <span class="required">*</span> are required. 
+                The system will automatically set the introduced date to today and assign appropriate chamber based on bill number.
+            </div>
+        </div>
+    </div>
+
     <!-- Main Application -->
     <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
-            <div class="version-badge">v3.1.0 Fixed</div>
+            <div class="version-badge">v3.1.0 - FIXED API</div>
             <div class="auth-controls">
                 <div class="user-info">
                     <span id="userDisplay"></span>
@@ -716,7 +834,7 @@
                 <button id="logoutBtn" class="logout-btn">Logout</button>
             </div>
             <h1>Enhanced LegiScan Law Enforcement Training Legislation Tracker</h1>
-            <p>Advanced real-time tracking with multi-state search, smart relevance scoring, and comprehensive LegiScan integration</p>
+            <p>Advanced real-time tracking with multi-state search, smart relevance scoring, and FIXED LegiScan integration</p>
         </div>
         
         <div id="enhancedStatus" class="enhanced-status">
@@ -728,7 +846,7 @@
                 <span class="api-status">📡 LegiScan API: <span id="apiStatus">Checking...</span></span>
             </div>
             <div class="status-item">
-                <span id="versionInfo">🚀 Enhanced v3.1.0</span>
+                <span id="versionInfo">🚀 Enhanced v3.1.0 - FIXED</span>
             </div>
         </div>
 
@@ -761,7 +879,7 @@
                 <button id="searchBtn" class="search-btn">Search</button>
                 <button id="syncBtn" class="sync-btn">FIXED Sync</button>
                 <button id="testLegiScanMainBtn" class="test-btn">Test LegiScan</button>
-                <button id="addTestBillMainBtn" class="test-btn">Add Test Bill</button>
+                <button id="addBillMainBtn" class="test-btn">Add Bill</button>
             </div>
             
             <div class="filter-controls">
@@ -816,7 +934,7 @@
         <div class="main-content">
             <div id="loadingIndicator" class="loading">
                 <div class="loading-spinner"></div>
-                Loading enhanced legislative data with LegiScan integration...
+                Loading enhanced legislative data with FIXED LegiScan integration...
             </div>
             
             <div id="billsContainer" style="display: none;">
@@ -827,7 +945,7 @@
             <div id="noBillsMessage" class="no-bills" style="display: none;">
                 <div class="no-bills-icon">📋</div>
                 <h3>No Bills Found</h3>
-                <p>Try adjusting your search criteria or run an enhanced sync to get the latest data from LegiScan.</p>
+                <p>Try adjusting your search criteria or run the FIXED sync to get the latest data from LegiScan.</p>
             </div>
         </div>
     </div>
@@ -932,6 +1050,154 @@
             addDebug(`Message shown (${isError ? 'error' : 'success'}): ${message}`);
         }
 
+        // Show Add Bill message
+        function showAddBillMessage(message, isError = true) {
+            const errorDiv = document.getElementById('addBillErrorMessage');
+            const successDiv = document.getElementById('addBillSuccessMessage');
+            
+            if (isError) {
+                if (errorDiv) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                }
+                if (successDiv) {
+                    successDiv.style.display = 'none';
+                }
+            } else {
+                if (successDiv) {
+                    successDiv.textContent = message;
+                    successDiv.style.display = 'block';
+                }
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
+            }
+        }
+
+        // Show Add Bill modal
+        function showAddBillModal() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required to add bills', true);
+                return;
+            }
+            
+            const addBillOverlay = document.getElementById('addBillOverlay');
+            if (addBillOverlay) {
+                addBillOverlay.style.display = 'flex';
+                // Clear form
+                document.getElementById('addBillNumber').value = '';
+                document.getElementById('addBillTitle').value = '';
+                document.getElementById('addBillDescription').value = '';
+                document.getElementById('addBillState').value = 'CUSTOM';
+                document.getElementById('addBillStatus').value = 'Introduced';
+                document.getElementById('addBillProgress').value = '15';
+                document.getElementById('addBillRelevance').value = '5';
+                document.getElementById('addBillFunding').value = '';
+                document.getElementById('addBillKeywords').value = '';
+                
+                // Clear messages
+                const errorMsg = document.getElementById('addBillErrorMessage');
+                const successMsg = document.getElementById('addBillSuccessMessage');
+                if (errorMsg) errorMsg.style.display = 'none';
+                if (successMsg) successMsg.style.display = 'none';
+            }
+            addDebug('Add Bill modal opened');
+        }
+
+        // Hide Add Bill modal
+        function hideAddBillModal() {
+            const addBillOverlay = document.getElementById('addBillOverlay');
+            if (addBillOverlay) {
+                addBillOverlay.style.display = 'none';
+            }
+            addDebug('Add Bill modal closed');
+        }
+
+        // Save new bill
+        async function saveNewBill() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showAddBillMessage('Admin access required to add bills', true);
+                return;
+            }
+            
+            const saveBillBtn = document.getElementById('saveBillBtn');
+            if (!saveBillBtn) return;
+            
+            // Get form values
+            const billNumber = document.getElementById('addBillNumber').value.trim();
+            const title = document.getElementById('addBillTitle').value.trim();
+            const description = document.getElementById('addBillDescription').value.trim();
+            const stateCode = document.getElementById('addBillState').value;
+            const status = document.getElementById('addBillStatus').value;
+            const progressPercentage = document.getElementById('addBillProgress').value;
+            const relevanceScore = document.getElementById('addBillRelevance').value;
+            const fundsAllocated = document.getElementById('addBillFunding').value.trim() || 'Not specified';
+            const keywords = document.getElementById('addBillKeywords').value.trim();
+            
+            // Validate required fields
+            if (!billNumber || !title) {
+                showAddBillMessage('Bill Number and Title are required fields', true);
+                return;
+            }
+            
+            // Validate bill number format
+            if (!/^[A-Za-z]{1,3}\.?\s*[A-Za-z]*\.?\s*\d+$/.test(billNumber)) {
+                showAddBillMessage('Please enter a valid bill number format (e.g., HB123, S.456, H.R.789)', true);
+                return;
+            }
+            
+            saveBillBtn.disabled = true;
+            saveBillBtn.textContent = 'Saving...';
+            
+            try {
+                addDebug(`Creating new bill: ${billNumber}`);
+                
+                const billData = {
+                    stateCode,
+                    billNumber,
+                    title,
+                    description,
+                    status,
+                    progressPercentage: parseInt(progressPercentage) || 15,
+                    relevanceScore: parseInt(relevanceScore) || 5,
+                    fundsAllocated,
+                    keywords
+                };
+                
+                const response = await fetch('/api/admin/add-bill', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(billData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                addDebug(`Bill created successfully: ${data.bill.billNumber}`);
+                showAddBillMessage(`✅ Bill "${data.bill.billNumber}" created successfully!`, false);
+                
+                // Clear form after successful creation
+                setTimeout(() => {
+                    hideAddBillModal();
+                    // Refresh the bills list
+                    loadEnhancedBills();
+                }, 2000);
+                
+            } catch (error) {
+                addDebug(`Failed to create bill: ${error.message}`);
+                showAddBillMessage(`❌ Failed to create bill: ${error.message}`, true);
+            } finally {
+                saveBillBtn.disabled = false;
+                saveBillBtn.textContent = 'Save Bill';
+            }
+        }
+
         // Test basic connection
         async function testConnection() {
             addDebug('Testing basic connection...');
@@ -984,7 +1250,7 @@
                 return;
             }
 
-            addDebug('Testing LegiScan API connectivity...');
+            addDebug('Testing FIXED LegiScan API connectivity...');
             updateAPIStatus('testing');
             
             try {
@@ -993,7 +1259,7 @@
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 
-                addDebug(`LegiScan test response status: ${response.status}`);
+                addDebug(`FIXED LegiScan test response status: ${response.status}`);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -1001,11 +1267,11 @@
                 }
                 
                 const data = await response.json();
-                addDebug(`LegiScan test result: ${JSON.stringify(data)}`);
+                addDebug(`FIXED LegiScan test result: ${JSON.stringify(data)}`);
                 
                 if (data.success) {
                     const results = data.testResults;
-                    let statusMessage = `✅ LegiScan Working! `;
+                    let statusMessage = `✅ FIXED LegiScan Working! `;
                     
                     if (results.connectivity) statusMessage += `Connectivity ✅ `;
                     if (results.searchTest) statusMessage += `Search ✅ `;
@@ -1016,13 +1282,13 @@
                     updateAPIStatus('connected');
                 } else {
                     const errors = data.testResults?.errors || [];
-                    showMessage(`⚠️ LegiScan Partial Success: ${errors.join(', ')}`, true);
+                    showMessage(`⚠️ FIXED LegiScan Partial Success: ${errors.join(', ')}`, true);
                     updateAPIStatus('failed');
                 }
                 
             } catch (error) {
-                addDebug(`LegiScan test failed: ${error.message}`);
-                showMessage(`❌ LegiScan Test Error: ${error.message}`, true);
+                addDebug(`FIXED LegiScan test failed: ${error.message}`);
+                showMessage(`❌ FIXED LegiScan Test Error: ${error.message}`, true);
                 updateAPIStatus('failed');
             }
         }
@@ -1100,34 +1366,9 @@
             }
         }
 
-        // Add test bill
+        // Add test bill (backwards compatibility)
         async function addTestBill() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required to add test bill', true);
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/admin/add-test-bill', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                showMessage(`✅ Test bill created: ${data.bill.billNumber}`, false);
-                
-                // Refresh the bills list
-                setTimeout(() => {
-                    loadEnhancedBills();
-                }, 2000);
-                
-            } catch (error) {
-                showMessage(`❌ Failed to create test bill: ${error.message}`, true);
-            }
+            showAddBillModal();
         }
 
         // Update API status indicator
@@ -1246,7 +1487,7 @@
 
         // Load enhanced bills
         async function loadEnhancedBills() {
-            addDebug('Loading enhanced bills with LegiScan integration...');
+            addDebug('Loading enhanced bills with FIXED LegiScan integration...');
             
             if (!authToken) {
                 addDebug('No auth token - cannot load enhanced bills');
@@ -1516,7 +1757,7 @@
                 
                 if (statusText) {
                     const lastSync = data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
-                    const isRunning = data.currentlyRunning ? ' • 🔄 Enhanced sync in progress' : '';
+                    const isRunning = data.currentlyRunning ? ' • 🔄 FIXED sync in progress' : '';
                     
                     statusText.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • ⭐ High Relevance: ${data.highRelevanceBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
                 }
@@ -1532,7 +1773,7 @@
             }
         }
 
-        // Sync enhanced LegiScan
+        // Sync enhanced LegiScan with FIXED API
         async function syncEnhancedLegiScan() {
             if (!currentUser || currentUser.role !== 'admin') {
                 showMessage('Admin access required for enhanced sync', true);
@@ -1545,7 +1786,7 @@
             addDebug('Starting FIXED LegiScan sync...');
             
             syncBtn.disabled = true;
-            syncBtn.textContent = 'Fixed Syncing...';
+            syncBtn.textContent = 'FIXED Syncing...';
             
             try {
                 const response = await fetch('/api/admin/sync-bills-fixed', {
@@ -1560,11 +1801,11 @@
                 
                 const data = await response.json();
                 addDebug(`FIXED sync initiated: ${data.message}`);
-                showMessage('🚀 FIXED LegiScan sync started! Using multiple search strategies. New bills should appear within 10-15 minutes.', false);
+                showMessage('🚀 FIXED LegiScan sync started! Using proven API calls. New bills should appear within 10-15 minutes.', false);
                 
                 const statusText = document.getElementById('statusText');
                 if (statusText) {
-                    statusText.innerHTML = '🔄 FIXED LegiScan sync in progress • Multiple strategies active';
+                    statusText.innerHTML = '🔄 FIXED LegiScan sync in progress • Using working API strategy';
                 }
                 
                 setTimeout(() => {
@@ -1584,7 +1825,7 @@
 
         // Initialize enhanced app when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            addDebug('DOM loaded, setting up ENHANCED app...');
+            addDebug('DOM loaded, setting up ENHANCED app with FIXED API...');
             
             clearAuthData();
             showLogin();
@@ -1597,7 +1838,7 @@
             const directApiTestBtn = document.getElementById('directApiTestBtn');
             const simpleApiTestBtn = document.getElementById('simpleApiTestBtn');
             const addTestBillBtn = document.getElementById('addTestBillBtn');
-            const addTestBillMainBtn = document.getElementById('addTestBillMainBtn');
+            const addBillMainBtn = document.getElementById('addBillMainBtn');
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             const passwordInput = document.getElementById('password');
@@ -1609,6 +1850,10 @@
             const sourceFilter = document.getElementById('sourceFilter');
             const sortSelect = document.getElementById('sortSelect');
             const sortOrderSelect = document.getElementById('sortOrderSelect');
+            
+            // Add Bill modal event listeners
+            const cancelAddBillBtn = document.getElementById('cancelAddBillBtn');
+            const saveBillBtn = document.getElementById('saveBillBtn');
             
             // Add all event listeners with error checking
             if (testConnectionBtn) {
@@ -1646,9 +1891,9 @@
                 addDebug('Add test bill button listener added');
             }
             
-            if (addTestBillMainBtn) {
-                addTestBillMainBtn.addEventListener('click', addTestBill);
-                addDebug('Main add test bill button listener added');
+            if (addBillMainBtn) {
+                addBillMainBtn.addEventListener('click', showAddBillModal);
+                addDebug('Main add bill button listener added');
             }
             
             if (loginBtn) {
@@ -1716,6 +1961,48 @@
             if (sortOrderSelect) {
                 sortOrderSelect.addEventListener('change', loadEnhancedBills);
                 addDebug('Sort order select listener added');
+            }
+            
+            // Add Bill modal event listeners
+            if (cancelAddBillBtn) {
+                cancelAddBillBtn.addEventListener('click', hideAddBillModal);
+                addDebug('Cancel add bill button listener added');
+            }
+            
+            if (saveBillBtn) {
+                saveBillBtn.addEventListener('click', saveNewBill);
+                addDebug('Save bill button listener added');
+            }
+            
+            // Close modal when clicking outside
+            const addBillOverlay = document.getElementById('addBillOverlay');
+            if (addBillOverlay) {
+                addBillOverlay.addEventListener('click', function(e) {
+                    if (e.target === addBillOverlay) {
+                        hideAddBillModal();
+                    }
+                });
+            }
+            
+            // Enter key support in bill forms
+            const addBillNumber = document.getElementById('addBillNumber');
+            const addBillTitle = document.getElementById('addBillTitle');
+            
+            if (addBillNumber) {
+                addBillNumber.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        document.getElementById('addBillTitle').focus();
+                    }
+                });
+            }
+            
+            if (addBillTitle) {
+                addBillTitle.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        saveNewBill();
+                    }
+                });
             }
             
             addDebug('All event listeners set up successfully');
