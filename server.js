@@ -230,22 +230,108 @@ UserWatchlist.belongsTo(User);
 Bill.hasMany(UserWatchlist);
 UserWatchlist.belongsTo(Bill);
 
+// ===== Database Migration Function =====
+async function runDatabaseMigrations() {
+  console.log('🔧 Running database migrations...');
+  
+  try {
+    const queryInterface = sequelize.getQueryInterface();
+    
+    // Check if new columns exist, if not add them
+    const tableDescription = await queryInterface.describeTable('Bills');
+    
+    const columnsToAdd = [
+      {
+        name: 'legiscanId',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true,
+          unique: true
+        }
+      },
+      {
+        name: 'keywords',
+        definition: {
+          type: DataTypes.TEXT,
+          allowNull: true
+        }
+      },
+      {
+        name: 'relevanceScore',
+        definition: {
+          type: DataTypes.INTEGER,
+          defaultValue: 0
+        }
+      },
+      {
+        name: 'lastSynced',
+        definition: {
+          type: DataTypes.DATE,
+          allowNull: true
+        }
+      },
+      {
+        name: 'legiscanUrl',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true
+        }
+      },
+      {
+        name: 'isActive',
+        definition: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: true
+        }
+      },
+      {
+        name: 'sourceType',
+        definition: {
+          type: DataTypes.ENUM('manual', 'legiscan'),
+          defaultValue: 'manual'
+        }
+      }
+    ];
+    
+    for (const column of columnsToAdd) {
+      if (!tableDescription[column.name]) {
+        console.log(`➕ Adding column: ${column.name}`);
+        await queryInterface.addColumn('Bills', column.name, column.definition);
+      } else {
+        console.log(`✅ Column already exists: ${column.name}`);
+      }
+    }
+    
+    // Update existing bills to have isActive = true if it's null
+    await sequelize.query(`
+      UPDATE "Bills" 
+      SET "isActive" = true 
+      WHERE "isActive" IS NULL
+    `);
+    
+    console.log('✅ Database migrations completed');
+    
+  } catch (error) {
+    console.error('❌ Migration error:', error);
+    // Don't throw error, let the app continue
+  }
+}
+
 // ===== Enhanced LegiScan Service Class =====
 class LegiScanService {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.baseUrl = LEGISCAN_BASE_URL;
-    this.requestDelay = 1000; // Increased delay to avoid rate limits
+    this.requestDelay = 1000;
   }
 
   async makeRequest(endpoint, params = {}) {
     try {
       const url = `${this.baseUrl}/?key=${this.apiKey}&${new URLSearchParams(params).toString()}`;
       
-      // Add delay between requests
       await new Promise(resolve => setTimeout(resolve, this.requestDelay));
       
-      console.log(`🌐 LegiScan API Request: ${url.substring(0, 100)}...`);
+      console.log(`🌐 LegiScan API Request: ${params.op || 'unknown'}`);
       
       const response = await axios.get(url, { 
         timeout: 30000,
@@ -326,7 +412,6 @@ class LegiScanService {
       }
     });
 
-    // High priority keywords get extra points
     const highPriorityKeywords = [
       'money laundering', 'financial crimes', 'asset forfeiture', 'aml',
       'law enforcement training', 'financial intelligence', 'fraud investigation'
@@ -364,7 +449,8 @@ class LegiScanService {
       relevanceScore: relevanceAnalysis.relevanceScore,
       lastSynced: new Date(),
       legiscanUrl: `https://legiscan.com/${legiscanBill.state}/bill/${legiscanBill.bill_number}/${legiscanBill.session_id}`,
-      sourceType: 'legiscan'
+      sourceType: 'legiscan',
+      isActive: true
     };
   }
 
@@ -433,7 +519,6 @@ async function syncRelevantBills() {
         try {
           console.log(`🔍 Searching for: "${keyword}"`);
           
-          // Search for current year and previous year
           const currentYear = new Date().getFullYear();
           const years = [currentYear, currentYear - 1];
           
@@ -448,7 +533,6 @@ async function syncRelevantBills() {
             totalFound += searchResults.length;
             console.log(`   Found ${searchResults.length} bills for "${keyword}" in ${year}`);
 
-                            // Process up to 3 bills per keyword per year to avoid overwhelming
             for (const result of searchResults.slice(0, 3)) {
               try {
                 if (!result || !result.bill_id) {
@@ -501,7 +585,6 @@ async function syncRelevantBills() {
         }
       }
       
-      // Longer delay between batches
       if (batchIndex < keywordBatches.length - 1) {
         console.log('⏳ Waiting between batches...');
         await new Promise(resolve => setTimeout(resolve, 5000));
@@ -580,7 +663,6 @@ const authenticateToken = async (req, res, next) => {
 
 // ===== API ROUTES (MUST COME FIRST) =====
 
-// API endpoint for information
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'Legislative Tracker API with Enhanced LegiScan Integration', 
@@ -605,7 +687,6 @@ app.get('/api', (req, res) => {
   });
 });
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -729,7 +810,7 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });
 
-// Enhanced Bills routes
+// Enhanced Bills routes with better error handling
 app.get('/api/bills', authenticateToken, async (req, res) => {
   try {
     console.log(`📄 Bills request from user: ${req.user.email}`);
@@ -739,16 +820,36 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       sortBy = 'relevanceScore', sortOrder = 'DESC', source = 'all'
     } = req.query;
 
-    const where = { isActive: true };
+    // Build where clause carefully
+    const where = {};
+    
+    // Only filter by isActive if the column exists
+    try {
+      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+      if (tableDescription.isActive) {
+        where.isActive = true;
+      }
+    } catch (error) {
+      console.log('isActive column check failed, skipping filter');
+    }
     
     // Search functionality
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
         { description: { [Op.iLike]: `%${search}%` } },
-        { billNumber: { [Op.iLike]: `%${search}%` } },
-        { keywords: { [Op.iLike]: `%${search}%` } }
+        { billNumber: { [Op.iLike]: `%${search}%` } }
       ];
+      
+      // Only add keywords search if column exists
+      try {
+        const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+        if (tableDescription.keywords) {
+          where[Op.or].push({ keywords: { [Op.iLike]: `%${search}%` } });
+        }
+      } catch (error) {
+        console.log('keywords column not available for search');
+      }
     }
 
     // State filter
@@ -761,39 +862,66 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       where.status = { [Op.iLike]: `%${status}%` };
     }
 
-    // Relevance filter
+    // Relevance filter (only if column exists)
     if (minRelevance > 0) {
-      where.relevanceScore = { [Op.gte]: parseInt(minRelevance) };
+      try {
+        const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+        if (tableDescription.relevanceScore) {
+          where.relevanceScore = { [Op.gte]: parseInt(minRelevance) };
+        }
+      } catch (error) {
+        console.log('relevanceScore column not available for filtering');
+      }
     }
 
-    // Source filter
+    // Source filter (only if column exists)
     if (source !== 'all') {
-      where.sourceType = source;
+      try {
+        const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+        if (tableDescription.sourceType) {
+          where.sourceType = source;
+        }
+      } catch (error) {
+        console.log('sourceType column not available for filtering');
+      }
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
+    // Determine sort column based on what exists
+    let actualSortBy = 'createdAt'; // fallback
+    try {
+      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+      if (tableDescription[sortBy]) {
+        actualSortBy = sortBy;
+      }
+    } catch (error) {
+      console.log(`Sort column ${sortBy} not available, using createdAt`);
+    }
+
     const bills = await Bill.findAndCountAll({
       where,
-      order: [[sortBy, sortOrder.toUpperCase()]],
+      order: [[actualSortBy, sortOrder.toUpperCase()]],
       limit: parseInt(limit),
       offset: offset
     });
 
     // Calculate statistics
-    const totalBills = await Bill.count({ where: { isActive: true } });
-    const legiscanBills = await Bill.count({ 
-      where: { 
-        isActive: true, 
-        sourceType: 'legiscan' 
-      } 
-    });
-    const manualBills = await Bill.count({ 
-      where: { 
-        isActive: true, 
-        sourceType: 'manual' 
-      } 
-    });
+    const totalBills = await Bill.count();
+    let legiscanBills = 0;
+    let manualBills = 0;
+    
+    try {
+      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+      if (tableDescription.sourceType) {
+        legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
+        manualBills = await Bill.count({ where: { sourceType: 'manual' } });
+      } else {
+        manualBills = totalBills; // If no sourceType column, assume all are manual
+      }
+    } catch (error) {
+      manualBills = totalBills;
+    }
 
     console.log(`📊 Returning ${bills.rows.length} bills (${bills.count} total matching criteria)`);
 
@@ -948,7 +1076,16 @@ app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
     });
 
     const totalBills = await Bill.count();
-    const legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
+    let legiscanBills = 0;
+    
+    try {
+      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+      if (tableDescription.sourceType) {
+        legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
+      }
+    } catch (error) {
+      console.log('sourceType column not available for stats');
+    }
 
     res.json({
       apiStatus: 'active',
@@ -1022,8 +1159,11 @@ async function startServer() {
     console.log('✅ Database connected successfully');
     
     console.log('🔄 Syncing database...');
-    await sequelize.sync({ force: false });
+    await sequelize.sync({ alter: false }); // Don't force sync existing tables
     console.log('✅ Database synced');
+
+    // Run migrations after sync
+    await runDatabaseMigrations();
 
     // Create admin user
     const adminPassword = await bcrypt.hash('admin123', 12);
@@ -1039,7 +1179,7 @@ async function startServer() {
       }
     });
 
-    // Create enhanced sample bills based on your Excel example
+    // Create enhanced sample bills with all new fields
     const existingBills = await Bill.count();
     if (existingBills === 0) {
       const sampleBills = [
@@ -1054,7 +1194,8 @@ async function startServer() {
           fundsAllocated: 'Grant Program',
           sourceType: 'manual',
           keywords: 'Law enforcement training, Financial crimes, Grant Program',
-          relevanceScore: 8
+          relevanceScore: 8,
+          isActive: true
         },
         {
           stateCode: 'US',
@@ -1067,7 +1208,8 @@ async function startServer() {
           fundsAllocated: 'TBD',
           sourceType: 'manual',
           keywords: 'Financial crimes, Money laundering prevention, Anti-money laundering',
-          relevanceScore: 9
+          relevanceScore: 9,
+          isActive: true
         },
         {
           stateCode: 'CA',
@@ -1080,7 +1222,8 @@ async function startServer() {
           fundsAllocated: 'Not specified',
           sourceType: 'manual',
           keywords: 'Asset forfeiture, Law enforcement training, Intelligence sharing',
-          relevanceScore: 7
+          relevanceScore: 7,
+          isActive: true
         },
         {
           stateCode: 'US',
@@ -1093,7 +1236,8 @@ async function startServer() {
           fundsAllocated: '$50 million appropriation',
           sourceType: 'manual',
           keywords: 'Financial intelligence, Law enforcement training, Technical assistance',
-          relevanceScore: 8
+          relevanceScore: 8,
+          isActive: true
         }
       ];
 
@@ -1103,12 +1247,13 @@ async function startServer() {
           defaults: billData
         });
       }
-      console.log('✅ Enhanced sample bills created');
+      console.log('✅ Enhanced sample bills created with migration-compatible data');
     }
 
     console.log('👤 Admin login: admin@example.com / admin123');
     console.log(`🔍 Tracking ${TRACKING_KEYWORDS.length} keywords for legislative monitoring`);
     console.log('🔒 CSP configured to allow inline scripts');
+    console.log('🔧 Database migrations completed');
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
@@ -1118,7 +1263,7 @@ async function startServer() {
       console.log(`🔧 Enhanced LegiScan Integration: Active`);
     });
 
-    // Schedule automatic sync every 30 minutes (more reasonable than 2 minutes)
+    // Schedule automatic sync every 30 minutes
     setTimeout(() => {
       console.log('📅 Scheduling automatic bill sync every 30 minutes...');
       cron.schedule('*/30 * * * *', async () => {
@@ -1126,11 +1271,11 @@ async function startServer() {
         await syncRelevantBills();
       });
 
-      // Run initial sync after 1 minute to let server fully start
+      // Run initial sync after 2 minutes to let server fully start
       setTimeout(async () => {
         console.log('🚀 Running initial enhanced bill sync...');
         await syncRelevantBills();
-      }, 60000);
+      }, 120000);
     }, 5000);
     
   } catch (error) {
