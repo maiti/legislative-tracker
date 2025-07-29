@@ -1,4 +1,12 @@
-<!DOCTYPE html>
+if (addTestBillBtn) {
+                addTestBillBtn.addEventListener('click', addTestBill);
+                addDebug('Add test bill button listener added');
+            }
+            
+            if (addTestBillMainBtn) {
+                addTestBillMainBtn.addEventListener('click', addTestBill);
+                addDebug('Main add test bill button listener added');
+            }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -678,7 +686,8 @@
             <div class="test-buttons">
                 <button id="testConnectionBtn" class="test-btn-small">Test Connection</button>
                 <button id="testAPIBtn" class="test-btn-small">Test API</button>
-                <button id="testLegiScanBtn" class="test-btn-small">Test LegiScan</button>
+                <button id="testLegiScanBtn" class="test-btn-small">Test FIXED LegiScan</button>
+                <button id="addTestBillBtn" class="test-btn-small">Add Test Bill</button>
             </div>
             
             <div class="form-group">
@@ -755,8 +764,9 @@
             <div class="search-controls">
                 <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, keywords, or subjects...">
                 <button id="searchBtn" class="search-btn">Search</button>
-                <button id="syncBtn" class="sync-btn">Enhanced Sync</button>
-                <button id="testLegiScanMainBtn" class="test-btn">Test LegiScan</button>
+                <button id="syncBtn" class="sync-btn">FIXED Sync</button>
+                <button id="testLegiScanMainBtn" class="test-btn">Test FIXED LegiScan</button>
+                <button id="addTestBillMainBtn" class="test-btn">Add Test Bill</button>
             </div>
             
             <div class="filter-controls">
@@ -1546,13 +1556,13 @@
             const syncBtn = document.getElementById('syncBtn');
             if (!syncBtn) return;
             
-            addDebug('Starting enhanced LegiScan sync...');
+            addDebug('Starting FIXED LegiScan sync...');
             
             syncBtn.disabled = true;
-            syncBtn.textContent = 'Enhanced Syncing...';
+            syncBtn.textContent = 'Fixed Syncing...';
             
             try {
-                const response = await fetch('/api/admin/sync-bills-enhanced', {
+                const response = await fetch('/api/admin/sync-bills-fixed', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
@@ -1563,28 +1573,111 @@
                 }
                 
                 const data = await response.json();
-                addDebug(`Enhanced sync initiated: ${data.message}`);
-                showMessage('🚀 Enhanced LegiScan sync started! Multi-state search with advanced analysis running in background. New bills will appear within 5-10 minutes.', false);
+                addDebug(`FIXED sync initiated: ${data.message}`);
+                showMessage('🚀 FIXED LegiScan sync started! Using multiple search strategies and enhanced error handling. New bills should appear within 10-15 minutes.', false);
                 
                 // Update status to show sync is running
                 const statusText = document.getElementById('statusText');
                 if (statusText) {
-                    statusText.innerHTML = '🔄 Enhanced LegiScan sync in progress • Multi-state search active • Advanced relevance analysis running';
+                    statusText.innerHTML = '🔄 FIXED LegiScan sync in progress • Multiple strategies active • Keyword search + State filtering running';
                 }
                 
                 // Refresh the page after a delay
                 setTimeout(() => {
                     loadEnhancedDashboard();
-                }, 15000);
+                }, 20000);
                 
             } catch (error) {
-                addDebug(`Enhanced sync error: ${error.message}`);
-                showMessage(`Enhanced sync failed: ${error.message}`, true);
+                addDebug(`FIXED sync error: ${error.message}`);
+                showMessage(`FIXED sync failed: ${error.message}`, true);
             } finally {
                 setTimeout(() => {
                     syncBtn.disabled = false;
                     syncBtn.textContent = 'Enhanced Sync';
-                }, 10000);
+                }, 15000);
+            }
+        }
+
+        async function testLegiScanAPIFixed() {
+            if (!authToken) {
+                showMessage('❌ Please login first to test LegiScan API', true);
+                return;
+            }
+
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('❌ Admin access required for LegiScan testing', true);
+                return;
+            }
+
+            addDebug('Testing FIXED LegiScan API connectivity...');
+            updateAPIStatus('testing');
+            
+            try {
+                const response = await fetch('/api/admin/test-legiscan-fixed', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                addDebug(`FIXED LegiScan test response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                addDebug(`FIXED LegiScan test result: ${JSON.stringify(data)}`);
+                
+                if (data.success) {
+                    const results = data.testResults;
+                    let statusMessage = `✅ FIXED LegiScan Working! `;
+                    
+                    if (results.connectivity) statusMessage += `Connectivity ✅ `;
+                    if (results.searchTest) statusMessage += `Search ✅ `;
+                    if (results.masterListTest) statusMessage += `Master List ✅ `;
+                    if (results.billDetailsTest) statusMessage += `Bill Details ✅`;
+                    
+                    showMessage(statusMessage, false);
+                    updateAPIStatus('connected');
+                } else {
+                    const errors = data.testResults?.errors || [];
+                    showMessage(`⚠️ FIXED LegiScan Partial Success: ${errors.join(', ')}`, true);
+                    updateAPIStatus('failed');
+                }
+                
+            } catch (error) {
+                addDebug(`FIXED LegiScan test failed: ${error.message}`);
+                showMessage(`❌ FIXED LegiScan Test Error: ${error.message}`, true);
+                updateAPIStatus('failed');
+            }
+        }
+
+        async function addTestBill() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required to add test bill', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/add-test-bill', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                showMessage(`✅ Test bill created: ${data.bill.billNumber}`, false);
+                
+                // Refresh the bills list
+                setTimeout(() => {
+                    loadEnhancedBills();
+                }, 2000);
+                
+            } catch (error) {
+                showMessage(`❌ Failed to create test bill: ${error.message}`, true);
             }
         }
 
@@ -1600,6 +1693,8 @@
             const testAPIBtn = document.getElementById('testAPIBtn');
             const testLegiScanBtn = document.getElementById('testLegiScanBtn');
             const testLegiScanMainBtn = document.getElementById('testLegiScanMainBtn');
+            const addTestBillBtn = document.getElementById('addTestBillBtn');
+            const addTestBillMainBtn = document.getElementById('addTestBillMainBtn');
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             const passwordInput = document.getElementById('password');
@@ -1623,13 +1718,13 @@
             }
             
             if (testLegiScanBtn) {
-                testLegiScanBtn.addEventListener('click', testLegiScanAPI);
-                addDebug('LegiScan test button listener added');
+                testLegiScanBtn.addEventListener('click', testLegiScanAPIFixed);
+                addDebug('FIXED LegiScan test button listener added');
             }
             
             if (testLegiScanMainBtn) {
-                testLegiScanMainBtn.addEventListener('click', testLegiScanAPI);
-                addDebug('Main LegiScan test button listener added');
+                testLegiScanMainBtn.addEventListener('click', testLegiScanAPIFixed);
+                addDebug('Main FIXED LegiScan test button listener added');
             }
             
             if (loginBtn) {
