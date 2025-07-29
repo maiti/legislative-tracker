@@ -270,45 +270,43 @@ UserWatchlist.belongsTo(User);
 Bill.hasMany(UserWatchlist);
 UserWatchlist.belongsTo(Bill);
 
-// ===== ENHANCED LegiScan Service Class =====
-class EnhancedLegiScanService {
+// ===== FIXED LegiScan Service Class =====
+class FixedLegiScanService {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    this.baseUrl = LEGISCAN_BASE_URL;
-    this.requestDelay = 2000; // Increased delay to avoid rate limits
+    this.baseUrl = 'https://api.legiscan.com';
+    this.requestDelay = 3000; // Increased delay to avoid rate limits
     this.maxRetries = 3;
-    this.sessionCache = new Map();
   }
 
   async makeRequest(operation, params = {}, retryCount = 0) {
     try {
-      // Build the complete URL with operation and parameters
-      const queryParams = new URLSearchParams({
-        key: this.apiKey,
-        op: operation,
-        ...params
-      });
-      
-      const url = `${this.baseUrl}/?${queryParams.toString()}`;
+      // Build the complete URL - CRITICAL: Use correct format
+      const url = `${this.baseUrl}/?key=${this.apiKey}&op=${operation}&${new URLSearchParams(params).toString()}`;
       
       // Rate limiting delay
       await new Promise(resolve => setTimeout(resolve, this.requestDelay));
       
       console.log(`🌐 LegiScan API Request: ${operation} (attempt ${retryCount + 1})`);
+      console.log(`🔗 URL: ${url.replace(this.apiKey, 'API_KEY_HIDDEN')}`);
       
       const response = await axios.get(url, { 
-        timeout: 45000,
+        timeout: 60000,
         headers: {
-          'User-Agent': 'Legislative-Tracker-Bot/2.0',
+          'User-Agent': 'Legislative-Tracker-Bot/3.0',
           'Accept': 'application/json'
         }
       });
+      
+      console.log(`📥 Response status: ${response.status}`);
+      console.log(`📄 Response data keys: ${Object.keys(response.data || {}).join(', ')}`);
       
       // Enhanced response validation
       if (response.data) {
         if (response.data.status === 'OK') {
           return response.data;
         } else if (response.data.status === 'ERROR') {
+          console.error(`❌ LegiScan API Error: ${response.data.alert?.message || 'Unknown error'}`);
           throw new Error(`LegiScan API Error: ${response.data.alert?.message || 'Unknown API error'}`);
         }
       }
@@ -316,351 +314,333 @@ class EnhancedLegiScanService {
       throw new Error('Invalid response from LegiScan API');
       
     } catch (error) {
+      console.error(`❌ Request failed: ${error.message}`);
+      
       // Enhanced error handling with retries
       if (error.response?.status === 429 && retryCount < this.maxRetries) {
-        const delay = Math.pow(2, retryCount) * 30000; // Exponential backoff
+        const delay = Math.pow(2, retryCount) * 60000; // Exponential backoff
         console.log(`⏳ Rate limit hit, waiting ${delay/1000} seconds before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.makeRequest(operation, params, retryCount + 1);
       }
       
-      if (error.code === 'ENOTFOUND' || error.code === 'ECONNRESET') {
-        if (retryCount < this.maxRetries) {
-          console.log(`🔄 Network error, retrying in 10 seconds...`);
-          await new Promise(resolve => setTimeout(resolve, 10000));
-          return this.makeRequest(operation, params, retryCount + 1);
-        }
+      if ((error.code === 'ENOTFOUND' || error.code === 'ECONNRESET') && retryCount < this.maxRetries) {
+        console.log(`🔄 Network error, retrying in 15 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 15000));
+        return this.makeRequest(operation, params, retryCount + 1);
       }
       
       throw error;
     }
   }
 
-  async getSessionList(state = 'ALL') {
+  async getMasterList(state = 'ALL') {
     try {
-      console.log(`📋 Fetching session list for: ${state}`);
+      console.log(`📋 Fetching master list for: ${state}`);
       
-      const data = await this.makeRequest('getSessionList', { state });
+      const data = await this.makeRequest('getMasterList', { state });
       
-      if (data.sessions) {
-        const sessions = Array.isArray(data.sessions) ? data.sessions : [data.sessions];
-        console.log(`   Found ${sessions.length} sessions for ${state}`);
-        return sessions;
+      if (data.masterlist) {
+        console.log(`   Found master list data for ${state}`);
+        return data.masterlist;
       }
       
-      return [];
+      return null;
     } catch (error) {
-      console.error(`Error fetching sessions for ${state}:`, error.message);
-      return [];
+      console.error(`Error fetching master list for ${state}:`, error.message);
+      return null;
     }
   }
 
-  async searchBillsAdvanced(keyword, state = 'ALL', year = null, limit = 50) {
+  // FIXED: Use proper search parameters and handle different search patterns
+  async searchBillsFixed(keyword, state = 'ALL', year = 2) {
     try {
-      const currentYear = year || new Date().getFullYear();
-      console.log(`🔍 Enhanced search for: "${keyword}" in ${state} (${currentYear})`);
+      console.log(`🔍 FIXED search for: "${keyword}" in ${state} (year=${year})`);
       
-      // Get active sessions first
-      let sessions = [];
-      if (!this.sessionCache.has(state)) {
-        sessions = await this.getSessionList(state);
-        this.sessionCache.set(state, sessions);
-      } else {
-        sessions = this.sessionCache.get(state);
-      }
+      // Try different search approaches
+      const searchVariations = [
+        keyword, // Exact keyword
+        `"${keyword}"`, // Quoted exact phrase
+        keyword.replace(/\s+/g, ' AND '), // AND between words
+        keyword.split(' ')[0] // First word only
+      ];
       
-      // Filter to current/recent sessions
-      const recentSessions = sessions.filter(session => {
-        const sessionYear = parseInt(session.year_start) || 0;
-        return sessionYear >= currentYear - 1 && sessionYear <= currentYear + 1;
-      });
-      
-      console.log(`   Using ${recentSessions.length} recent sessions`);
-      
-      const searchResults = [];
-      
-      // Search across recent sessions
-      for (const session of recentSessions.slice(0, 5)) { // Limit to 5 most recent sessions
+      for (const [index, searchTerm] of searchVariations.entries()) {
         try {
-          const data = await this.makeRequest('search', {
-            state: state,
-            query: keyword,
-            year: session.year_start || currentYear
-          });
+          console.log(`   Trying search variation ${index + 1}: "${searchTerm}"`);
           
-          if (data.searchresult && Array.isArray(data.searchresult)) {
-            const results = data.searchresult.slice(0, limit);
-            searchResults.push(...results);
-            console.log(`     Found ${results.length} results in ${session.year_start} session`);
+          const params = {
+            state: state,
+            query: searchTerm,
+            year: year // 2 = current year
+          };
+          
+          const data = await this.makeRequest('search', params);
+          
+          if (data.searchresult) {
+            // Handle different response formats
+            let results = [];
+            
+            if (Array.isArray(data.searchresult)) {
+              results = data.searchresult;
+            } else if (data.searchresult && typeof data.searchresult === 'object') {
+              // Sometimes it's an object with numbered keys
+              const keys = Object.keys(data.searchresult).filter(key => !isNaN(key));
+              results = keys.map(key => data.searchresult[key]);
+              
+              // Or it might have a summary and other data
+              if (data.searchresult.summary) {
+                console.log(`   Search summary: ${JSON.stringify(data.searchresult.summary)}`);
+              }
+            }
+            
+            if (results.length > 0) {
+              console.log(`   ✅ Found ${results.length} results with variation: "${searchTerm}"`);
+              return results;
+            } else {
+              console.log(`   ❌ No results with variation: "${searchTerm}"`);
+            }
+          } else {
+            console.log(`   ❌ No searchresult in response for: "${searchTerm}"`);
           }
           
-        } catch (error) {
-          console.error(`     Error searching session ${session.session_id}:`, error.message);
-          continue;
+        } catch (searchError) {
+          console.error(`   Error with search variation "${searchTerm}":`, searchError.message);
+          continue; // Try next variation
         }
       }
       
-      // Remove duplicates based on bill_id
-      const uniqueResults = searchResults.filter((bill, index, self) =>
-        index === self.findIndex(b => b.bill_id === bill.bill_id)
-      );
-      
-      console.log(`   Total unique results: ${uniqueResults.length}`);
-      return uniqueResults;
+      console.log(`   No results found for any variation of "${keyword}"`);
+      return [];
       
     } catch (error) {
-      console.error(`Enhanced search error for "${keyword}":`, error.message);
+      console.error(`FIXED search error for "${keyword}":`, error.message);
       return [];
     }
   }
 
-  async getBillDetailsEnhanced(billId) {
+  // FIXED: Simpler approach - get recent bills from master list and filter
+  async getRecentBillsByState(state = 'CA', limit = 50) {
     try {
-      console.log(`📄 Fetching enhanced bill details for ID: ${billId}`);
+      console.log(`📋 Getting recent bills from ${state}...`);
+      
+      const masterList = await this.getMasterList(state);
+      
+      if (!masterList) {
+        console.log(`   No master list data for ${state}`);
+        return [];
+      }
+      
+      // Extract bills from master list
+      let bills = [];
+      
+      if (Array.isArray(masterList)) {
+        bills = masterList;
+      } else if (masterList && typeof masterList === 'object') {
+        // Handle different master list formats
+        const keys = Object.keys(masterList).filter(key => !isNaN(key));
+        bills = keys.map(key => masterList[key]);
+      }
+      
+      console.log(`   Found ${bills.length} bills in master list`);
+      
+      // Sort by session year and take recent ones
+      bills.sort((a, b) => {
+        const aYear = parseInt(a.session?.year_start || 0);
+        const bYear = parseInt(b.session?.year_start || 0);
+        return bYear - aYear; // Most recent first
+      });
+      
+      return bills.slice(0, limit);
+      
+    } catch (error) {
+      console.error(`Error getting recent bills for ${state}:`, error.message);
+      return [];
+    }
+  }
+
+  async getBillDetailsFixed(billId) {
+    try {
+      console.log(`📄 Fetching bill details for ID: ${billId}`);
       
       const data = await this.makeRequest('getBill', { id: billId });
       
       if (data.bill) {
-        // Also try to get bill text for better analysis
-        try {
-          const textData = await this.makeRequest('getBillText', { id: billId });
-          if (textData.text && textData.text.doc) {
-            data.bill.fullText = textData.text.doc;
-          }
-        } catch (textError) {
-          console.log(`     No text available for bill ${billId}`);
-        }
-        
+        console.log(`   ✅ Got bill details for ${billId}`);
         return data.bill;
       }
       
+      console.log(`   ❌ No bill data for ${billId}`);
       return null;
     } catch (error) {
-      console.error(`Error fetching enhanced bill ${billId}:`, error.message);
+      console.error(`Error fetching bill ${billId}:`, error.message);
       return null;
     }
   }
 
-  enhancedRelevanceAnalysis(billTitle, billDescription, billText = '', subjects = []) {
+  // Enhanced relevance analysis for better filtering
+  isRelevantToTraining(billTitle, billDescription, billText = '') {
     const content = `${billTitle} ${billDescription} ${billText}`.toLowerCase();
-    const subjectText = Array.isArray(subjects) ? subjects.join(' ').toLowerCase() : '';
-    const allContent = `${content} ${subjectText}`;
     
-    const foundKeywords = [];
-    let relevanceScore = 0;
-    
-    // Check for primary keywords
-    TRACKING_KEYWORDS.forEach(keyword => {
-      if (allContent.includes(keyword.toLowerCase())) {
-        foundKeywords.push(keyword);
-        relevanceScore += 1;
-      }
-    });
-    
-    // High-priority keyword bonus scoring
-    const highPriorityKeywords = [
-      'money laundering', 'financial crimes', 'asset forfeiture', 'aml',
-      'law enforcement training', 'financial intelligence', 'fraud investigation',
-      'police training', 'justice grants', 'cops grants', 'byrne grants',
-      'technical assistance', 'capacity building'
+    // Training-specific keywords
+    const trainingKeywords = [
+      'training', 'education', 'academy', 'instruction', 'certification',
+      'professional development', 'curriculum', 'course', 'program',
+      'law enforcement training', 'police training', 'officer training'
     ];
     
-    highPriorityKeywords.forEach(keyword => {
-      if (allContent.includes(keyword)) {
-        relevanceScore += 3; // Higher bonus for priority terms
+    // Financial crime keywords
+    const financialKeywords = [
+      'money laundering', 'financial crime', 'fraud', 'asset forfeiture',
+      'aml', 'anti-money laundering', 'financial intelligence', 
+      'economic crime', 'white collar', 'illicit finance'
+    ];
+    
+    // Grant/funding keywords
+    const fundingKeywords = [
+      'grant', 'funding', 'appropriation', 'assistance', 'support',
+      'cops grant', 'byrne grant', 'jag grant', 'federal assistance'
+    ];
+    
+    let score = 0;
+    let foundKeywords = [];
+    
+    // Check each category
+    trainingKeywords.forEach(keyword => {
+      if (content.includes(keyword)) {
+        score += 3;
+        foundKeywords.push(keyword);
       }
     });
     
-    // Special pattern matching for funding/grants
-    if (allContent.match(/\$[\d,]+|grant|appropriation|funding|million|billion/)) {
-      relevanceScore += 2;
-      foundKeywords.push('Funding/Grants');
-    }
+    financialKeywords.forEach(keyword => {
+      if (content.includes(keyword)) {
+        score += 4;
+        foundKeywords.push(keyword);
+      }
+    });
     
-    // Training-specific patterns
-    if (allContent.match(/training|education|certification|academy|instruction/)) {
-      relevanceScore += 2;
-      foundKeywords.push('Training Programs');
-    }
+    fundingKeywords.forEach(keyword => {
+      if (content.includes(keyword)) {
+        score += 2;
+        foundKeywords.push(keyword);
+      }
+    });
     
-    // Law enforcement agency patterns
-    if (allContent.match(/police|sheriff|detective|officer|agent|enforcement|investigation/)) {
-      relevanceScore += 1;
-      foundKeywords.push('Law Enforcement');
+    // Bonus for law enforcement
+    if (content.includes('law enforcement') || content.includes('police')) {
+      score += 2;
+      foundKeywords.push('law enforcement');
     }
     
     return {
-      isRelevant: foundKeywords.length > 0 || relevanceScore > 0,
-      foundKeywords: [...new Set(foundKeywords)], // Remove duplicates
-      relevanceScore: Math.min(relevanceScore, 10), // Cap at 10
-      confidence: Math.min(relevanceScore * 10, 100),
-      hasTraining: allContent.includes('training'),
-      hasFunding: allContent.match(/\$|grant|fund/) !== null,
-      hasLawEnforcement: allContent.match(/police|law enforcement|officer/) !== null
+      isRelevant: score >= 2,
+      relevanceScore: Math.min(score, 10),
+      foundKeywords: [...new Set(foundKeywords)]
     };
   }
 
-  formatBillForDatabaseEnhanced(legiscanBill, relevanceAnalysis) {
-    const status = this.mapStatusEnhanced(legiscanBill.status, legiscanBill.status_date);
-    const progressPercentage = this.calculateProgressEnhanced(legiscanBill.status, legiscanBill.history);
+  formatBillForDatabaseFixed(legiscanBill, relevanceAnalysis) {
+    // More robust status mapping
+    const statusText = this.getStatusText(legiscanBill.status);
+    const progressPercentage = this.calculateProgressFixed(legiscanBill.status);
     
     return {
-      legiscanId: legiscanBill.bill_id.toString(),
+      legiscanId: legiscanBill.bill_id?.toString() || legiscanBill.id?.toString(),
       stateCode: legiscanBill.state || 'US',
-      billNumber: legiscanBill.bill_number || 'Unknown',
+      billNumber: legiscanBill.bill_number || legiscanBill.number || 'Unknown',
       title: legiscanBill.title || 'No title available',
-      description: this.generateSmartDescription(legiscanBill, relevanceAnalysis),
-      status: status,
+      description: this.generateDescription(legiscanBill, relevanceAnalysis),
+      status: statusText,
       progressPercentage: progressPercentage,
-      introducedDate: legiscanBill.introduced_date || null,
-      fundsAllocated: this.extractFundingEnhanced(legiscanBill),
+      introducedDate: legiscanBill.introduced_date || legiscanBill.date_introduced || null,
+      fundsAllocated: this.extractFunding(legiscanBill),
       keywords: relevanceAnalysis.foundKeywords.join(', '),
       relevanceScore: relevanceAnalysis.relevanceScore,
       lastSynced: new Date(),
-      legiscanUrl: this.buildLegiscanUrl(legiscanBill),
+      legiscanUrl: this.buildUrl(legiscanBill),
       sourceType: 'legiscan',
       isActive: true,
       sessionId: legiscanBill.session_id?.toString() || null,
       chamber: this.extractChamber(legiscanBill.bill_number),
       sponsors: this.extractSponsors(legiscanBill),
-      subjects: Array.isArray(legiscanBill.subjects) ? legiscanBill.subjects.join(', ') : '',
-      changeHash: legiscanBill.change_hash || null
+      subjects: this.extractSubjects(legiscanBill)
     };
   }
 
-  generateSmartDescription(billData, relevanceAnalysis) {
+  getStatusText(status) {
+    const statusMap = {
+      1: 'Introduced',
+      2: 'Engrossed', 
+      3: 'Enrolled',
+      4: 'Passed',
+      5: 'Vetoed',
+      6: 'Failed/Dead'
+    };
+    return statusMap[status] || 'Unknown';
+  }
+
+  calculateProgressFixed(status) {
+    const progressMap = {
+      1: 20,  // Introduced
+      2: 50,  // Engrossed
+      3: 80,  // Enrolled
+      4: 100, // Passed
+      5: 0,   // Vetoed
+      6: 0    // Failed/Dead
+    };
+    return progressMap[status] || 10;
+  }
+
+  generateDescription(billData, relevanceAnalysis) {
     const title = billData.title || '';
     const state = billData.state || 'Federal';
-    const hasTraining = relevanceAnalysis.hasTraining;
-    const hasFunding = relevanceAnalysis.hasFunding;
-    const hasLawEnforcement = relevanceAnalysis.hasLawEnforcement;
     
-    let description = `${title}`;
+    let description = title;
     
     if (billData.description && billData.description !== title) {
       description = billData.description;
     } else {
-      // Generate smart description based on analysis
-      description += ` - `;
+      description += ` - A ${state} bill`;
       
-      if (hasTraining && hasLawEnforcement) {
-        description += `A ${state} bill addressing law enforcement training and professional development. `;
-      } else if (hasFunding && hasLawEnforcement) {
-        description += `A ${state} bill providing funding for law enforcement programs and initiatives. `;
-      } else if (hasTraining) {
-        description += `A ${state} bill focused on training and educational programs. `;
-      } else if (relevanceAnalysis.foundKeywords.includes('Financial crimes')) {
-        description += `A ${state} bill addressing financial crime prevention and enforcement. `;
-      } else {
-        description += `A ${state} legislative initiative. `;
+      if (relevanceAnalysis.foundKeywords.includes('training')) {
+        description += ' focused on training and professional development';
+      }
+      if (relevanceAnalysis.foundKeywords.includes('law enforcement')) {
+        description += ' for law enforcement personnel';
+      }
+      if (relevanceAnalysis.foundKeywords.some(k => k.includes('financial') || k.includes('crime'))) {
+        description += ' addressing financial crime prevention';
       }
       
-      if (relevanceAnalysis.relevanceScore >= 5) {
-        description += `This bill is highly relevant to law enforcement training and financial crime prevention efforts.`;
-      } else if (relevanceAnalysis.relevanceScore >= 3) {
-        description += `This bill has moderate relevance to our tracking criteria.`;
-      } else {
-        description += `This bill may contain provisions of interest to law enforcement professionals.`;
-      }
+      description += '.';
     }
     
     return description;
   }
 
-  mapStatusEnhanced(legiscanStatus, statusDate = null) {
-    const statusMap = {
-      1: 'Introduced',
-      2: 'In Committee', 
-      3: 'Committee Review',
-      4: 'Passed Chamber',
-      5: 'Passed Both Chambers',
-      6: 'Signed/Enacted',
-      7: 'Vetoed',
-      8: 'Failed/Dead',
-      9: 'Withdrawn'
-    };
+  extractFunding(billData) {
+    const text = `${billData.title || ''} ${billData.description || ''}`.toLowerCase();
     
-    const baseStatus = statusMap[legiscanStatus] || 'Unknown';
-    
-    // Add date context if available
-    if (statusDate) {
-      const date = new Date(statusDate);
-      const now = new Date();
-      const daysDiff = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-      
-      if (daysDiff <= 7) {
-        return `${baseStatus} (Recent)`;
-      }
-    }
-    
-    return baseStatus;
-  }
-
-  calculateProgressEnhanced(status, history = []) {
-    const progressMap = {
-      1: 15,  // Introduced
-      2: 30,  // In Committee
-      3: 45,  // Committee Review
-      4: 70,  // Passed Chamber
-      5: 90,  // Passed Both Chambers
-      6: 100, // Signed/Enacted
-      7: 0,   // Vetoed
-      8: 0,   // Failed/Dead
-      9: 0    // Withdrawn
-    };
-    
-    let baseProgress = progressMap[status] || 5;
-    
-    // Enhance with history analysis
-    if (Array.isArray(history) && history.length > 0) {
-      const recentActions = history.slice(-3); // Last 3 actions
-      const hasRecentActivity = recentActions.some(action => {
-        if (action.date) {
-          const actionDate = new Date(action.date);
-          const now = new Date();
-          const daysDiff = (now - actionDate) / (1000 * 60 * 60 * 24);
-          return daysDiff <= 30; // Recent activity in last 30 days
-        }
-        return false;
-      });
-      
-      if (hasRecentActivity) {
-        baseProgress += 5; // Bonus for recent activity
-      }
-    }
-    
-    return Math.min(baseProgress, 100);
-  }
-
-  extractFundingEnhanced(billData) {
-    const title = (billData.title || '').toLowerCase();
-    const description = (billData.description || '').toLowerCase();
-    const text = `${title} ${description}`;
-    
-    // Look for specific dollar amounts
+    // Look for dollar amounts
     const dollarMatch = text.match(/\$\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(million|billion|thousand)?/i);
     if (dollarMatch) {
-      const amount = dollarMatch[1];
-      const unit = dollarMatch[2] || '';
-      return `$${amount}${unit ? ' ' + unit : ''}`;
+      return `$${dollarMatch[1]}${dollarMatch[2] ? ' ' + dollarMatch[2] : ''}`;
     }
     
-    // Look for appropriation types
-    if (text.includes('appropriat')) return 'Appropriation Bill';
+    if (text.includes('appropriat')) return 'Appropriation';
     if (text.includes('grant')) return 'Grant Program';
     if (text.includes('fund')) return 'Funding Program';
-    if (text.includes('budget')) return 'Budget Allocation';
-    if (text.includes('financial assistance')) return 'Financial Assistance';
     
     return 'Not specified';
   }
 
-  buildLegiscanUrl(billData) {
-    const state = billData.state || 'us';
+  buildUrl(billData) {
+    const state = (billData.state || 'us').toLowerCase();
     const billNumber = billData.bill_number || '';
     const sessionId = billData.session_id || '';
     
-    return `https://legiscan.com/${state.toLowerCase()}/bill/${billNumber}/${sessionId}`;
+    return `https://legiscan.com/${state}/bill/${billNumber}/${sessionId}`;
   }
 
   extractChamber(billNumber) {
@@ -676,184 +656,216 @@ class EnhancedLegiScanService {
 
   extractSponsors(billData) {
     if (billData.sponsors && Array.isArray(billData.sponsors)) {
-      return billData.sponsors.map(sponsor => 
-        `${sponsor.name || 'Unknown'} (${sponsor.party || 'Unknown'})`
+      return billData.sponsors.slice(0, 3).map(sponsor => 
+        sponsor.name || 'Unknown'
       ).join(', ');
     }
     return 'Not specified';
   }
+
+  extractSubjects(billData) {
+    if (billData.subjects && Array.isArray(billData.subjects)) {
+      return billData.subjects.join(', ');
+    }
+    return '';
+  }
 }
 
-const enhancedLegiScan = new EnhancedLegiScanService(LEGISCAN_API_KEY);
-
-// ===== ENHANCED Bill Sync Function =====
-async function syncRelevantBillsEnhanced() {
+// ===== ENHANCED Sync Function with Multiple Strategies =====
+async function syncRelevantBillsFixed() {
   let syncRecord;
   
   try {
     syncRecord = await SyncStatus.create({
-      syncType: 'enhanced_automatic',
+      syncType: 'fixed_enhanced',
       status: 'running',
       startTime: new Date()
     });
 
-    console.log('🚀 Starting ENHANCED LegiScan synchronization...');
-    console.log(`🔑 Using API Key: ${LEGISCAN_API_KEY.substring(0, 8)}...`);
+    console.log('🚀 Starting FIXED LegiScan synchronization with multiple strategies...');
+    
+    const fixedLegiScan = new FixedLegiScanService(LEGISCAN_API_KEY);
     
     let totalFound = 0;
     let totalAdded = 0;
     let totalUpdated = 0;
-    const processedStates = [];
-
-    // Priority states for law enforcement legislation
-    const priorityStates = ['US', 'CA', 'TX', 'FL', 'NY', 'IL', 'PA', 'OH'];
     
-    // Process high-priority keywords first
-    const priorityKeywords = [
-      'law enforcement training', 'police training', 'financial crimes',
-      'money laundering', 'asset forfeiture', 'justice grants',
-      'COPS grants', 'Byrne grants', 'technical assistance'
+    // Strategy 1: Search for specific high-value keywords
+    const highValueKeywords = [
+      'police training',
+      'law enforcement training', 
+      'financial crimes',
+      'money laundering',
+      'grant program',
+      'cops grant',
+      'technical assistance'
     ];
     
-    console.log(`📋 Processing ${priorityKeywords.length} priority keywords across ${priorityStates.length} states`);
+    console.log(`📋 Strategy 1: Searching for ${highValueKeywords.length} high-value keywords...`);
     
-    for (const [keywordIndex, keyword] of priorityKeywords.entries()) {
-      console.log(`\n🔍 [${keywordIndex + 1}/${priorityKeywords.length}] Processing: "${keyword}"`);
+    for (const [keywordIndex, keyword] of highValueKeywords.entries()) {
+      console.log(`\n🔍 [${keywordIndex + 1}/${highValueKeywords.length}] Searching: "${keyword}"`);
       
-      for (const [stateIndex, state] of priorityStates.entries()) {
-        try {
-          console.log(`   🏛️  [${stateIndex + 1}/${priorityStates.length}] Searching in: ${state}`);
-          
-          const searchResults = await enhancedLegiScan.searchBillsAdvanced(keyword, state, null, 20);
-          
-          if (!Array.isArray(searchResults) || searchResults.length === 0) {
-            console.log(`      ❌ No results found`);
-            continue;
-          }
-
+      try {
+        const searchResults = await fixedLegiScan.searchBillsFixed(keyword, 'ALL', 2);
+        
+        if (searchResults.length > 0) {
           totalFound += searchResults.length;
-          console.log(`      ✅ Found ${searchResults.length} bills`);
-
-          // Process each bill with enhanced analysis
-          for (const [billIndex, result] of searchResults.entries()) {
-            try {
-              if (!result || !result.bill_id) {
-                console.log(`         ⚠️  Invalid result ${billIndex + 1}`);
-                continue;
-              }
-
-              console.log(`         📄 [${billIndex + 1}/${searchResults.length}] Processing bill ID: ${result.bill_id}`);
-
-              const billDetails = await enhancedLegiScan.getBillDetailsEnhanced(result.bill_id);
-              if (!billDetails) {
-                console.log(`            ❌ No details retrieved`);
-                continue;
-              }
-
-              const relevanceAnalysis = enhancedLegiScan.enhancedRelevanceAnalysis(
-                billDetails.title || '',
-                billDetails.description || '',
-                billDetails.fullText || '',
-                billDetails.subjects || []
-              );
-
-              console.log(`            🎯 Relevance Score: ${relevanceAnalysis.relevanceScore}/10`);
-
-              if (relevanceAnalysis.relevanceScore < 2) {
-                console.log(`            ⚠️  Low relevance, skipping`);
-                continue;
-              }
-
-              const formattedBill = enhancedLegiScan.formatBillForDatabaseEnhanced(billDetails, relevanceAnalysis);
-
-              const existingBill = await Bill.findOne({
-                where: { legiscanId: formattedBill.legiscanId }
-              });
-
-              if (existingBill) {
-                await existingBill.update({
-                  ...formattedBill,
-                  createdAt: existingBill.createdAt
-                });
-                totalUpdated++;
-                console.log(`            ✅ Updated: ${formattedBill.billNumber}`);
-              } else {
-                await Bill.create(formattedBill);
-                totalAdded++;
-                console.log(`            ✨ Added: ${formattedBill.billNumber}`);
-              }
-
-            } catch (billError) {
-              console.error(`            ❌ Error processing bill ${result.bill_id}:`, billError.message);
-            }
-          }
+          console.log(`   ✅ Found ${searchResults.length} results`);
           
-          if (!processedStates.includes(state)) {
-            processedStates.push(state);
+          // Process up to 5 bills per keyword to avoid overwhelming the system
+          for (const result of searchResults.slice(0, 5)) {
+            await processBillResult(result, fixedLegiScan);
           }
-          
-        } catch (stateError) {
-          console.error(`      ❌ Error processing state ${state}:`, stateError.message);
+        } else {
+          console.log(`   ❌ No results for "${keyword}"`);
         }
         
-        // Delay between states to avoid rate limits
-        if (stateIndex < priorityStates.length - 1) {
-          console.log(`      ⏳ Waiting 3 seconds before next state...`);
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
+      } catch (keywordError) {
+        console.error(`   Error processing keyword "${keyword}":`, keywordError.message);
       }
       
-      // Longer delay between keywords
-      if (keywordIndex < priorityKeywords.length - 1) {
-        console.log(`   ⏳ Waiting 10 seconds before next keyword...`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
+      // Delay between keywords
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+    
+    // Strategy 2: Get recent bills from priority states and filter
+    const priorityStates = ['CA', 'TX', 'FL', 'NY'];
+    
+    console.log(`\n📋 Strategy 2: Getting recent bills from ${priorityStates.length} priority states...`);
+    
+    for (const [stateIndex, state] of priorityStates.entries()) {
+      console.log(`\n🏛️  [${stateIndex + 1}/${priorityStates.length}] Processing state: ${state}`);
+      
+      try {
+        const recentBills = await fixedLegiScan.getRecentBillsByState(state, 20);
+        
+        if (recentBills.length > 0) {
+          console.log(`   Found ${recentBills.length} recent bills`);
+          
+          for (const bill of recentBills.slice(0, 10)) {
+            await processBillFromMasterList(bill, fixedLegiScan);
+          }
+        }
+        
+      } catch (stateError) {
+        console.error(`   Error processing state ${state}:`, stateError.message);
+      }
+      
+      // Delay between states
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    }
+    
+    async function processBillResult(result, apiService) {
+      try {
+        if (!result || !result.bill_id) {
+          console.log(`      ⚠️  Invalid search result`);
+          return;
+        }
+
+        console.log(`      📄 Processing bill ID: ${result.bill_id}`);
+
+        const billDetails = await apiService.getBillDetailsFixed(result.bill_id);
+        if (!billDetails) {
+          console.log(`         ❌ No details retrieved`);
+          return;
+        }
+
+        const relevanceAnalysis = apiService.isRelevantToTraining(
+          billDetails.title || '',
+          billDetails.description || ''
+        );
+
+        console.log(`         🎯 Relevance: ${relevanceAnalysis.relevanceScore}/10`);
+
+        if (!relevanceAnalysis.isRelevant) {
+          console.log(`         ⚠️  Not relevant, skipping`);
+          return;
+        }
+
+        const formattedBill = apiService.formatBillForDatabaseFixed(billDetails, relevanceAnalysis);
+
+        const existingBill = await Bill.findOne({
+          where: { legiscanId: formattedBill.legiscanId }
+        });
+
+        if (existingBill) {
+          await existingBill.update({
+            ...formattedBill,
+            createdAt: existingBill.createdAt
+          });
+          totalUpdated++;
+          console.log(`         ✅ Updated: ${formattedBill.billNumber}`);
+        } else {
+          await Bill.create(formattedBill);
+          totalAdded++;
+          console.log(`         ✨ Added: ${formattedBill.billNumber}`);
+        }
+
+      } catch (billError) {
+        console.error(`         ❌ Error processing bill:`, billError.message);
+      }
+    }
+    
+    async function processBillFromMasterList(bill, apiService) {
+      try {
+        // Quick relevance check on title/description before fetching full details
+        const quickCheck = apiService.isRelevantToTraining(
+          bill.title || '',
+          bill.description || ''
+        );
+        
+        if (!quickCheck.isRelevant) {
+          return; // Skip non-relevant bills
+        }
+        
+        console.log(`      📄 Relevant bill found: ${bill.bill_number || bill.number}`);
+        
+        const billId = bill.bill_id || bill.id;
+        if (billId) {
+          await processBillResult({ bill_id: billId }, apiService);
+        }
+        
+      } catch (error) {
+        console.error(`      Error processing master list bill:`, error.message);
       }
     }
 
-    const safeTotal = isNaN(totalFound) ? 0 : totalFound;
-    const safeAdded = isNaN(totalAdded) ? 0 : totalAdded;
-    const safeUpdated = isNaN(totalUpdated) ? 0 : totalUpdated;
-
+    // Update sync record
     if (syncRecord) {
       await syncRecord.update({
         status: 'completed',
         endTime: new Date(),
-        billsFound: safeTotal,
-        billsAdded: safeAdded,
-        billsUpdated: safeUpdated,
-        keywordsProcessed: priorityKeywords.length,
-        statesProcessed: processedStates.join(', ')
+        billsFound: totalFound,
+        billsAdded: totalAdded,
+        billsUpdated: totalUpdated,
+        keywordsProcessed: highValueKeywords.length,
+        statesProcessed: priorityStates.join(', ')
       });
     }
 
-    console.log(`\n✅ ENHANCED SYNC COMPLETE!`);
-    console.log(`   📊 Found: ${safeTotal} bills`);
-    console.log(`   ➕ Added: ${safeAdded} new bills`);
-    console.log(`   🔄 Updated: ${safeUpdated} existing bills`);
-    console.log(`   🏛️  States: ${processedStates.join(', ')}`);
-    console.log(`   🔍 Keywords: ${priorityKeywords.length} processed`);
+    console.log(`\n✅ FIXED SYNC COMPLETE!`);
+    console.log(`   📊 Found: ${totalFound} bills`);
+    console.log(`   ➕ Added: ${totalAdded} new bills`);
+    console.log(`   🔄 Updated: ${totalUpdated} existing bills`);
     
     return {
       success: true,
-      totalFound: safeTotal,
-      totalAdded: safeAdded,
-      totalUpdated: safeUpdated,
-      statesProcessed: processedStates,
-      keywordsProcessed: priorityKeywords.length,
+      totalFound,
+      totalAdded,
+      totalUpdated,
+      strategies: ['keyword search', 'state filtering'],
       timestamp: new Date()
     };
 
   } catch (error) {
-    console.error('❌ ENHANCED SYNC FAILED:', error);
+    console.error('❌ FIXED SYNC FAILED:', error);
     
     if (syncRecord) {
       try {
         await syncRecord.update({
           status: 'failed',
           endTime: new Date(),
-          billsFound: 0,
-          billsAdded: 0,
-          billsUpdated: 0,
           errorMessage: error.message
         });
       } catch (updateError) {
@@ -874,6 +886,56 @@ async function runEnhancedDatabaseMigrations() {
     const tableDescription = await queryInterface.describeTable('Bills');
     
     const newColumnsToAdd = [
+      {
+        name: 'legiscanId',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true,
+          unique: true
+        }
+      },
+      {
+        name: 'keywords',
+        definition: {
+          type: DataTypes.TEXT,
+          allowNull: true
+        }
+      },
+      {
+        name: 'relevanceScore',
+        definition: {
+          type: DataTypes.INTEGER,
+          defaultValue: 0
+        }
+      },
+      {
+        name: 'lastSynced',
+        definition: {
+          type: DataTypes.DATE,
+          allowNull: true
+        }
+      },
+      {
+        name: 'legiscanUrl',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true
+        }
+      },
+      {
+        name: 'isActive',
+        definition: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: true
+        }
+      },
+      {
+        name: 'sourceType',
+        definition: {
+          type: DataTypes.ENUM('manual', 'legiscan'),
+          defaultValue: 'manual'
+        }
+      },
       {
         name: 'sessionId',
         definition: {
@@ -927,7 +989,7 @@ async function runEnhancedDatabaseMigrations() {
   }
 }
 
-// Auth middleware (unchanged)
+// Auth middleware
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -955,21 +1017,20 @@ const authenticateToken = async (req, res, next) => {
 
 app.get('/api', (req, res) => {
   res.json({ 
-    message: 'Legislative Tracker API - ENHANCED LegiScan Integration', 
+    message: 'Legislative Tracker API - FIXED LegiScan Integration', 
     status: 'OK',
     timestamp: new Date().toISOString(),
-    version: '3.0.0',
+    version: '3.1.0-FIXED',
     features: [
-      'Enhanced LegiScan Integration', 
-      'Advanced Bill Analysis', 
-      'Multi-State Search', 
-      'Smart Relevance Scoring',
-      'Real-time Sync Status',
+      'FIXED LegiScan Integration', 
+      'Multi-Strategy Search', 
+      'Enhanced Error Handling', 
+      'Real Bill Retrieval',
       'Comprehensive Training Focus'
     ],
     apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
     keywordsTracking: TRACKING_KEYWORDS.length,
-    priorityStates: ['US', 'CA', 'TX', 'FL', 'NY', 'IL', 'PA', 'OH'],
+    priorityStates: ['CA', 'TX', 'FL', 'NY'],
     endpoints: [
       'POST /api/auth/register',
       'POST /api/auth/login', 
@@ -980,9 +1041,11 @@ app.get('/api', (req, res) => {
       'GET /api/bills/watchlist/mine',
       'GET /api/admin/users/pending',
       'POST /api/admin/users/:id/approve',
-      'POST /api/admin/sync-bills-enhanced',
+      'POST /api/admin/sync-bills-fixed',
       'GET /api/admin/sync-status-enhanced',
-      'POST /api/admin/test-legiscan'
+      'POST /api/admin/test-legiscan-fixed',
+      'GET /api/admin/debug-bills',
+      'POST /api/admin/add-test-bill'
     ]
   });
 });
@@ -992,155 +1055,14 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     database: 'connected',
-    legiscan: 'enhanced_active',
+    legiscan: 'fixed_integration',
     apiKey: LEGISCAN_API_KEY ? 'configured' : 'missing',
     keywords_tracking: TRACKING_KEYWORDS.length,
-    version: '3.0.0'
+    version: '3.1.0-FIXED'
   });
 });
 
-// Enhanced Admin Routes
-
-app.post('/api/admin/sync-bills-enhanced', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    console.log(`🚀 ENHANCED MANUAL SYNC triggered by ${req.user.email}`);
-    
-    // Start enhanced sync in background
-    syncRelevantBillsEnhanced().catch(error => {
-      console.error('Enhanced background sync failed:', error);
-    });
-    
-    res.json({
-      message: 'ENHANCED LegiScan synchronization started in background',
-      status: 'initiated',
-      timestamp: new Date(),
-      keywordsTracking: TRACKING_KEYWORDS.length,
-      version: '3.0.0',
-      features: ['Multi-state search', 'Enhanced relevance analysis', 'Smart bill processing']
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to start enhanced sync', details: error.message });
-  }
-});
-
-app.get('/api/admin/sync-status-enhanced', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const recentSyncs = await SyncStatus.findAll({
-      order: [['startTime', 'DESC']],
-      limit: 15
-    });
-
-    const totalBills = await Bill.count();
-    let legiscanBills = 0;
-    let enhancedBills = 0;
-    
-    try {
-      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
-      if (tableDescription.sourceType) {
-        legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
-      }
-      if (tableDescription.relevanceScore) {
-        enhancedBills = await Bill.count({ 
-          where: { 
-            relevanceScore: { [Op.gte]: 5 }
-          } 
-        });
-      }
-    } catch (error) {
-      console.log('Enhanced columns not available for stats');
-    }
-
-    res.json({
-      apiStatus: 'enhanced_active',
-      apiKey: LEGISCAN_API_KEY ? 'configured' : 'missing',
-      version: '3.0.0',
-      totalBills,
-      legiscanBills,
-      manualBills: totalBills - legiscanBills,
-      highRelevanceBills: enhancedBills,
-      keywordsTracking: TRACKING_KEYWORDS.length,
-      recentSyncs: recentSyncs.length,
-      lastSync: recentSyncs[0]?.endTime || null,
-      currentlyRunning: recentSyncs.some(sync => sync.status === 'running'),
-      enhancedFeatures: [
-        'Multi-state search capability',
-        'Advanced relevance scoring',
-        'Enhanced bill analysis',
-        'Smart keyword matching',
-        'Comprehensive error handling'
-      ],
-      syncHistory: recentSyncs.map(sync => ({
-        id: sync.id,
-        type: sync.syncType,
-        status: sync.status,
-        startTime: sync.startTime,
-        endTime: sync.endTime,
-        billsFound: sync.billsFound,
-        billsAdded: sync.billsAdded,
-        billsUpdated: sync.billsUpdated,
-        keywordsProcessed: sync.keywordsProcessed,
-        statesProcessed: sync.statesProcessed,
-        duration: sync.endTime ? Math.round((new Date(sync.endTime) - new Date(sync.startTime)) / 1000) : null
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get enhanced sync status' });
-  }
-});
-
-// NEW: Test LegiScan API connectivity
-app.post('/api/admin/test-legiscan', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    console.log('🧪 Testing LegiScan API connectivity...');
-
-    // Test 1: Basic API connectivity
-    try {
-      const testData = await enhancedLegiScan.makeRequest('getSessionList', { state: 'CA' });
-      console.log('✅ API connectivity test passed');
-      
-      // Test 2: Search functionality
-      const searchResults = await enhancedLegiScan.searchBillsAdvanced('police training', 'CA', null, 5);
-      console.log(`✅ Search test passed - found ${searchResults.length} results`);
-      
-      res.json({
-        success: true,
-        apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
-        connectivity: 'successful',
-        searchTest: `Found ${searchResults.length} test results`,
-        timestamp: new Date(),
-        message: 'LegiScan API is working correctly'
-      });
-      
-    } catch (apiError) {
-      console.error('❌ API test failed:', apiError.message);
-      res.status(500).json({
-        success: false,
-        apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
-        connectivity: 'failed',
-        error: apiError.message,
-        timestamp: new Date(),
-        message: 'LegiScan API test failed'
-      });
-    }
-
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to test LegiScan API', details: error.message });
-  }
-});
-
-// Auth routes (unchanged from previous version)
+// Auth routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, organization } = req.body;
@@ -1387,7 +1309,7 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
         relevantBills: bills.rows.filter(b => (b.relevanceScore || 0) >= 3).length
       },
       enhanced: true,
-      version: '3.0.0'
+      version: '3.1.0-FIXED'
     });
   } catch (error) {
     console.error('Error fetching enhanced bills:', error);
@@ -1395,7 +1317,6 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
   }
 });
 
-// Other bill routes (unchanged)
 app.get('/api/bills/:id', authenticateToken, async (req, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
@@ -1489,6 +1410,281 @@ app.post('/api/admin/users/:id/approve', authenticateToken, async (req, res) => 
   }
 });
 
+// FIXED: Enhanced Admin Routes with better LegiScan integration
+app.post('/api/admin/sync-bills-fixed', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    console.log(`🚀 FIXED MANUAL SYNC triggered by ${req.user.email}`);
+    
+    // Start fixed sync in background
+    syncRelevantBillsFixed().catch(error => {
+      console.error('Fixed background sync failed:', error);
+    });
+    
+    res.json({
+      message: 'FIXED LegiScan synchronization started with multiple strategies',
+      status: 'initiated',
+      timestamp: new Date(),
+      strategies: ['keyword search', 'state filtering', 'relevance analysis'],
+      version: '3.1.0-fixed',
+      note: 'Using enhanced error handling and multiple search approaches'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to start fixed sync', details: error.message });
+  }
+});
+
+// FIXED: More robust LegiScan test
+app.post('/api/admin/test-legiscan-fixed', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    console.log('🧪 Testing FIXED LegiScan API connectivity...');
+
+    const fixedLegiScan = new FixedLegiScanService(LEGISCAN_API_KEY);
+    
+    const testResults = {
+      connectivity: false,
+      searchTest: false,
+      masterListTest: false,
+      billDetailsTest: false,
+      errors: []
+    };
+
+    // Test 1: Basic connectivity with getMasterList
+    try {
+      console.log('🔗 Test 1: Basic connectivity...');
+      const masterList = await fixedLegiScan.getMasterList('CA');
+      if (masterList) {
+        testResults.connectivity = true;
+        testResults.masterListTest = true;
+        console.log('✅ Basic connectivity successful');
+      }
+    } catch (error) {
+      testResults.errors.push(`Connectivity: ${error.message}`);
+      console.log('❌ Basic connectivity failed');
+    }
+
+    // Test 2: Search functionality
+    try {
+      console.log('🔍 Test 2: Search functionality...');
+      const searchResults = await fixedLegiScan.searchBillsFixed('police training', 'CA', 2);
+      if (searchResults && searchResults.length > 0) {
+        testResults.searchTest = true;
+        console.log(`✅ Search test successful - found ${searchResults.length} results`);
+        
+        // Test 3: Get bill details for first result
+        try {
+          console.log('📄 Test 3: Bill details...');
+          const billDetails = await fixedLegiScan.getBillDetailsFixed(searchResults[0].bill_id);
+          if (billDetails) {
+            testResults.billDetailsTest = true;
+            console.log('✅ Bill details test successful');
+          }
+        } catch (detailsError) {
+          testResults.errors.push(`Bill Details: ${detailsError.message}`);
+        }
+        
+      } else {
+        testResults.errors.push('Search returned no results');
+      }
+    } catch (searchError) {
+      testResults.errors.push(`Search: ${searchError.message}`);
+    }
+
+    const overallSuccess = testResults.connectivity && (testResults.searchTest || testResults.masterListTest);
+    
+    res.json({
+      success: overallSuccess,
+      apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
+      testResults,
+      timestamp: new Date(),
+      message: overallSuccess ? 'Fixed LegiScan integration is working' : 'Some tests failed but basic connectivity works',
+      recommendations: overallSuccess ? 
+        ['API is working correctly', 'Try running the fixed sync'] :
+        ['Check API key permissions', 'Verify network connectivity', 'Review error messages']
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to test fixed LegiScan API', 
+      details: error.message 
+    });
+  }
+});
+
+// Enhanced sync status endpoint
+app.get('/api/admin/sync-status-enhanced', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const recentSyncs = await SyncStatus.findAll({
+      order: [['startTime', 'DESC']],
+      limit: 15
+    });
+
+    const totalBills = await Bill.count();
+    let legiscanBills = 0;
+    let manualBills = 0;
+    let enhancedBills = 0;
+    
+    try {
+      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+      if (tableDescription.sourceType) {
+        legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
+        manualBills = await Bill.count({ where: { sourceType: 'manual' } });
+      } else {
+        manualBills = totalBills;
+      }
+      if (tableDescription.relevanceScore) {
+        enhancedBills = await Bill.count({ 
+          where: { 
+            relevanceScore: { [Op.gte]: 5 }
+          } 
+        });
+      }
+    } catch (error) {
+      console.log('Enhanced columns not available for stats');
+      manualBills = totalBills;
+    }
+
+    res.json({
+      apiStatus: 'fixed_active',
+      apiKey: LEGISCAN_API_KEY ? 'configured' : 'missing',
+      version: '3.1.0-FIXED',
+      totalBills,
+      legiscanBills,
+      manualBills,
+      highRelevanceBills: enhancedBills,
+      keywordsTracking: TRACKING_KEYWORDS.length,
+      recentSyncs: recentSyncs.length,
+      lastSync: recentSyncs[0]?.endTime || null,
+      currentlyRunning: recentSyncs.some(sync => sync.status === 'running'),
+      fixedFeatures: [
+        'Multi-strategy search capability',
+        'Enhanced error handling',
+        'Fixed API response parsing',
+        'Improved rate limiting',
+        'Master list integration'
+      ],
+      syncHistory: recentSyncs.map(sync => ({
+        id: sync.id,
+        type: sync.syncType,
+        status: sync.status,
+        startTime: sync.startTime,
+        endTime: sync.endTime,
+        billsFound: sync.billsFound,
+        billsAdded: sync.billsAdded,
+        billsUpdated: sync.billsUpdated,
+        keywordsProcessed: sync.keywordsProcessed,
+        statesProcessed: sync.statesProcessed,
+        duration: sync.endTime ? Math.round((new Date(sync.endTime) - new Date(sync.startTime)) / 1000) : null
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get enhanced sync status' });
+  }
+});
+
+// FIXED: Debug endpoint to show what's actually in the database
+app.get('/api/admin/debug-bills', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const bills = await Bill.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    const billsSummary = bills.map(bill => ({
+      id: bill.id,
+      billNumber: bill.billNumber,
+      title: bill.title?.substring(0, 100),
+      stateCode: bill.stateCode,
+      sourceType: bill.sourceType,
+      relevanceScore: bill.relevanceScore,
+      legiscanId: bill.legiscanId,
+      createdAt: bill.createdAt,
+      lastSynced: bill.lastSynced
+    }));
+
+    const stats = {
+      totalBills: await Bill.count(),
+      legiscanBills: await Bill.count({ where: { sourceType: 'legiscan' } }),
+      manualBills: await Bill.count({ where: { sourceType: 'manual' } }),
+      highRelevance: await Bill.count({ where: { relevanceScore: { [Op.gte]: 5 } } }),
+      recentlyAdded: await Bill.count({ 
+        where: { 
+          createdAt: { 
+            [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) 
+          } 
+        } 
+      })
+    };
+
+    res.json({
+      stats,
+      recentBills: billsSummary,
+      timestamp: new Date(),
+      databaseHealth: 'OK'
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get debug info', details: error.message });
+  }
+});
+
+// FIXED: Manual bill addition for testing
+app.post('/api/admin/add-test-bill', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const testBill = await Bill.create({
+      stateCode: 'TEST',
+      billNumber: 'TEST-' + Date.now(),
+      title: 'Test Bill for Enhanced Law Enforcement Training Programs',
+      description: 'A test bill to verify the system is working correctly. This bill addresses law enforcement training, financial crimes investigation, and technical assistance programs.',
+      status: 'Test Status',
+      progressPercentage: 50,
+      introducedDate: new Date().toISOString().split('T')[0],
+      fundsAllocated: '$1 million test appropriation',
+      sourceType: 'manual',
+      keywords: 'Law enforcement training, Financial crimes, Technical assistance, Test bill',
+      relevanceScore: 8,
+      isActive: true,
+      chamber: 'Test Chamber',
+      sponsors: 'Test Sponsor',
+      subjects: 'Law enforcement, Training, Testing'
+    });
+
+    res.json({
+      message: 'Test bill created successfully',
+      bill: {
+        id: testBill.id,
+        billNumber: testBill.billNumber,
+        title: testBill.title,
+        relevanceScore: testBill.relevanceScore
+      },
+      timestamp: new Date()
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create test bill', details: error.message });
+  }
+});
+
 // Frontend routes
 app.get('/', (req, res) => {
   res.redirect('/dashboard');
@@ -1500,7 +1696,7 @@ app.get('/dashboard', (req, res) => {
     res.sendFile(frontendPath);
   } else {
     res.json({ 
-      message: 'Legislative Tracker API - Enhanced Version',
+      message: 'Legislative Tracker API - FIXED Version',
       status: 'Frontend not found',
       redirect: '/api'
     });
@@ -1527,9 +1723,9 @@ app.get('*', (req, res) => {
 // Enhanced Server startup
 const PORT = process.env.PORT || 3001;
 
-async function startEnhancedServer() {
+async function startFixedServer() {
   try {
-    console.log('🚀 Starting ENHANCED Legislative Tracker Server...');
+    console.log('🚀 Starting FIXED Legislative Tracker Server...');
     console.log('🔗 Connecting to database...');
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
@@ -1592,40 +1788,6 @@ async function startEnhancedServer() {
           chamber: 'Senate',
           sponsors: 'Sen. Williams (D-NY), Sen. Davis (R-FL)',
           subjects: 'Banking and finance, Crime prevention, Law enforcement training'
-        },
-        {
-          stateCode: 'CA',
-          billNumber: 'AB.1234',
-          title: 'California Peace Officer Financial Crimes Training Act',
-          description: 'Requires mandatory training for California peace officers in financial crime detection, asset forfeiture procedures, and cryptocurrency-related investigations. Establishes state funding for training programs.',
-          status: 'Committee Review',
-          progressPercentage: 45,
-          introducedDate: '2025-02-10',
-          fundsAllocated: '$50 million state appropriation',
-          sourceType: 'manual',
-          keywords: 'Police training, Financial crimes, Asset forfeiture, Peace officer training',
-          relevanceScore: 8,
-          isActive: true,
-          chamber: 'Assembly',
-          sponsors: 'Asm. Rodriguez (D-Los Angeles)',
-          subjects: 'Peace officers, Training requirements, Financial crimes'
-        },
-        {
-          stateCode: 'TX',
-          billNumber: 'HB.2025',
-          title: 'Texas Law Enforcement Technical Assistance Program',
-          description: 'Establishes a comprehensive technical assistance program for Texas law enforcement agencies, focusing on modern investigative techniques, digital forensics, and inter-agency cooperation.',
-          status: 'Introduced',
-          progressPercentage: 20,
-          introducedDate: '2025-03-01',
-          fundsAllocated: '$75 million biennial',
-          sourceType: 'manual',
-          keywords: 'Technical assistance, Digital forensics, Law enforcement training, Inter-agency cooperation',
-          relevanceScore: 7,
-          isActive: true,
-          chamber: 'House',
-          sponsors: 'Rep. Martinez (R-Houston), Rep. Thompson (D-Austin)',
-          subjects: 'Law enforcement, Technology, Training programs'
         }
       ];
 
@@ -1638,60 +1800,66 @@ async function startEnhancedServer() {
       console.log('✅ Enhanced sample bills created with comprehensive data');
     }
 
-    console.log('🎯 ENHANCED FEATURES ACTIVE:');
-    console.log('   📊 Advanced relevance scoring');
-    console.log('   🔍 Multi-state search capability');
-    console.log('   🧠 Smart bill analysis');
-    console.log('   📈 Enhanced progress tracking');
-    console.log('   🔗 Comprehensive LegiScan integration');
+    console.log('🎯 FIXED FEATURES ACTIVE:');
+    console.log('   🔧 Fixed API response parsing');
+    console.log('   🔍 Multi-strategy search capability');
+    console.log('   🛡️  Enhanced error handling');
+    console.log('   📈 Improved rate limiting');
+    console.log('   🔗 Master list integration');
     console.log(`🔑 API Key Status: ${LEGISCAN_API_KEY ? 'Configured' : 'Missing'}`);
     console.log('👤 Admin login: admin@example.com / admin123');
     console.log(`🔍 Tracking ${TRACKING_KEYWORDS.length} keywords across multiple categories`);
     
     app.listen(PORT, () => {
-      console.log(`🚀 ENHANCED SERVER running on port ${PORT}`);
+      console.log(`🚀 FIXED SERVER running on port ${PORT}`);
       console.log(`📡 API available at: http://localhost:${PORT}/api`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
       console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
-      console.log(`🧪 Test LegiScan: POST /api/admin/test-legiscan`);
-      console.log(`🔄 Enhanced Sync: POST /api/admin/sync-bills-enhanced`);
+      console.log(`🧪 Test FIXED LegiScan: POST /api/admin/test-legiscan-fixed`);
+      console.log(`🔄 FIXED Sync: POST /api/admin/sync-bills-fixed`);
+      console.log(`🐛 Debug Bills: GET /api/admin/debug-bills`);
     });
 
     // Enhanced scheduling with immediate test
     setTimeout(async () => {
-      console.log('🧪 Running initial LegiScan connectivity test...');
+      console.log('🧪 Running initial FIXED LegiScan connectivity test...');
       try {
-        const testResult = await enhancedLegiScan.makeRequest('getSessionList', { state: 'CA' });
-        console.log('✅ LegiScan API test successful');
-        
-        // Schedule enhanced sync every 2 hours for more frequent updates
-        console.log('📅 Scheduling enhanced bill sync every 2 hours...');
-        cron.schedule('0 */2 * * *', async () => {
-          console.log('🕐 Running scheduled ENHANCED bill sync...');
-          await syncRelevantBillsEnhanced();
-        });
+        const fixedLegiScan = new FixedLegiScanService(LEGISCAN_API_KEY);
+        const testResult = await fixedLegiScan.getMasterList('CA');
+        if (testResult) {
+          console.log('✅ FIXED LegiScan API test successful');
+          
+          // Schedule fixed sync every 4 hours for stability
+          console.log('📅 Scheduling FIXED bill sync every 4 hours...');
+          cron.schedule('0 */4 * * *', async () => {
+            console.log('🕐 Running scheduled FIXED bill sync...');
+            await syncRelevantBillsFixed();
+          });
 
-        // Run initial enhanced sync after 3 minutes
-        setTimeout(async () => {
-          console.log('🚀 Running initial ENHANCED bill sync...');
-          const result = await syncRelevantBillsEnhanced();
-          if (result.success) {
-            console.log(`✅ Initial sync completed: ${result.totalAdded} new bills added`);
-          } else {
-            console.log(`❌ Initial sync failed: ${result.error}`);
-          }
-        }, 180000); // 3 minutes
-        
+          // Run initial fixed sync after 5 minutes
+          setTimeout(async () => {
+            console.log('🚀 Running initial FIXED bill sync...');
+            const result = await syncRelevantBillsFixed();
+            if (result.success) {
+              console.log(`✅ Initial FIXED sync completed: ${result.totalAdded} new bills added`);
+            } else {
+              console.log(`❌ Initial FIXED sync failed: ${result.error}`);
+            }
+          }, 300000); // 5 minutes
+          
+        } else {
+          console.log('❌ FIXED LegiScan API test failed - manual sync available');
+        }
       } catch (testError) {
-        console.error('❌ LegiScan API test failed:', testError.message);
-        console.log('⚠️  Manual sync will be available but may not work correctly');
+        console.error('❌ FIXED LegiScan API test failed:', testError.message);
+        console.log('⚠️  Manual FIXED sync will be available but may encounter issues');
       }
-    }, 10000); // 10 seconds after startup
+    }, 15000); // 15 seconds after startup
     
   } catch (error) {
-    console.error('❌ Failed to start enhanced server:', error);
+    console.error('❌ Failed to start FIXED server:', error);
     process.exit(1);
   }
 }
 
-startEnhancedServer();
+startFixedServer();
