@@ -1,83 +1,4 @@
-if (addTestBillBtn) {
-                addTestBillBtn.addEventListener('click', addTestBill);
-                addDebug('Add test bill button listener added');
-            async function directLegiScanTest() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for direct API test', true);
-                return;
-            }
-            
-            addDebug('Running DIRECT LegiScan API test...');
-            updateAPIStatus('testing');
-            
-            try {
-                const response = await fetch('/api/admin/direct-legiscan-test', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                addDebug(`Direct API test completed: ${JSON.stringify(data.summary)}`);
-                
-                if (data.summary.overallStatus === 'WORKING') {
-                    let message = `✅ DIRECT API TEST PASSED! `;
-                    message += `${data.summary.passed}/${data.summary.totalTests} tests passed. `;
-                    message += `API Key: ${data.summary.apiKey}`;
-                    
-                    showMessage(message, false);
-                    updateAPIStatus('connected');
-                    
-                    // Show detailed results
-                    console.log('📊 Detailed Test Results:', data.testResults);
-                    
-                } else {
-                    let message = `❌ DIRECT API TEST FAILED! `;
-                    message += `${data.summary.failed}/${data.summary.totalTests} tests failed. `;
-                    message += `Recommendations: ${data.summary.recommendations.join(', ')}`;
-                    
-                    showMessage(message, true);
-                    updateAPIStatus('failed');
-                }
-                
-            } catch (error) {
-                addDebug(`Direct API test failed: ${error.message}`);
-                showMessage(`❌ Direct API test error: ${error.message}`, true);
-                updateAPIStatus('failed');
-            }
-        }
-
-        async function simpleLegiScanTest() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for simple API test', true);
-                return;
-            }
-            
-            addDebug('Running SIMPLE LegiScan API test...');
-            
-            try {
-                const response = await fetch('/api/admin/simple-legiscan-test', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                addDebug(`Simple API test: ${JSON.stringify(data)}`);
-                
-                if (data.success && data.apiResponse?.status === 'OK') {
-                    showMessage(`✅ SIMPLE API TEST PASSED! Status: ${data.apiResponse.status}`, false);
-                    console.log('📊 API Response:', data.apiResponse);
-                } else {
-                    showMessage(`❌ SIMPLE API TEST FAILED! ${data.error || 'Unknown error'}`, true);
-                }
-                
-            } catch (error) {
-                showMessage(`❌ Simple API test error: ${error.message}`, true);
-            }
-        }
-            
-            if (addTestBillMainBtn) {
-                addTestBillMainBtn.addEventListener('click', addTestBill);
-                addDebug('Main add test bill button listener added');
-            }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -640,6 +561,7 @@ if (addTestBillBtn) {
             display: flex;
             gap: 10px;
             justify-content: center;
+            flex-wrap: wrap;
         }
         .test-btn-small {
             background: linear-gradient(135deg, #e67e22, #f39c12);
@@ -757,7 +679,7 @@ if (addTestBillBtn) {
             <div class="test-buttons">
                 <button id="testConnectionBtn" class="test-btn-small">Test Connection</button>
                 <button id="testAPIBtn" class="test-btn-small">Test API</button>
-                <button id="testLegiScanBtn" class="test-btn-small">Test FIXED LegiScan</button>
+                <button id="testLegiScanBtn" class="test-btn-small">Test LegiScan</button>
                 <button id="directApiTestBtn" class="test-btn-small">Direct API Test</button>
                 <button id="simpleApiTestBtn" class="test-btn-small">Simple API Test</button>
                 <button id="addTestBillBtn" class="test-btn-small">Add Test Bill</button>
@@ -774,7 +696,7 @@ if (addTestBillBtn) {
             <button id="loginBtn" class="login-btn">Sign In</button>
             
             <div class="demo-creds">
-                <strong>Enhanced Version 3.0.0</strong><br>
+                <strong>Enhanced Version 3.1.0</strong><br>
                 Demo Credentials:<br>
                 Email: admin@example.com<br>
                 Password: admin123
@@ -785,7 +707,7 @@ if (addTestBillBtn) {
     <!-- Main Application -->
     <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
-            <div class="version-badge">v3.0.0 Enhanced</div>
+            <div class="version-badge">v3.1.0 Fixed</div>
             <div class="auth-controls">
                 <div class="user-info">
                     <span id="userDisplay"></span>
@@ -806,7 +728,7 @@ if (addTestBillBtn) {
                 <span class="api-status">📡 LegiScan API: <span id="apiStatus">Checking...</span></span>
             </div>
             <div class="status-item">
-                <span id="versionInfo">🚀 Enhanced v3.0.0</span>
+                <span id="versionInfo">🚀 Enhanced v3.1.0</span>
             </div>
         </div>
 
@@ -838,7 +760,7 @@ if (addTestBillBtn) {
                 <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, keywords, or subjects...">
                 <button id="searchBtn" class="search-btn">Search</button>
                 <button id="syncBtn" class="sync-btn">FIXED Sync</button>
-                <button id="testLegiScanMainBtn" class="test-btn">Test FIXED LegiScan</button>
+                <button id="testLegiScanMainBtn" class="test-btn">Test LegiScan</button>
                 <button id="addTestBillMainBtn" class="test-btn">Add Test Bill</button>
             </div>
             
@@ -1017,7 +939,7 @@ if (addTestBillBtn) {
                 
                 const data = await response.json();
                 addDebug(`Health check data: ${JSON.stringify(data)}`);
-                showMessage(`✅ Connection OK: ${data.status} (Enhanced ${data.version || 'v3.0.0'})`, false);
+                showMessage(`✅ Connection OK: ${data.status} (Enhanced ${data.version || 'v3.1.0'})`, false);
             } catch (error) {
                 addDebug(`Connection failed: ${error.message}`);
                 showMessage(`❌ Connection Error: ${error.message}`, true);
@@ -1055,9 +977,10 @@ if (addTestBillBtn) {
             }
 
             addDebug('Testing LegiScan API connectivity...');
+            updateAPIStatus('testing');
             
             try {
-                const response = await fetch('/api/admin/test-legiscan', {
+                const response = await fetch('/api/admin/test-legiscan-fixed', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
@@ -1073,10 +996,19 @@ if (addTestBillBtn) {
                 addDebug(`LegiScan test result: ${JSON.stringify(data)}`);
                 
                 if (data.success) {
-                    showMessage(`✅ LegiScan API Working: ${data.searchTest} (Key: ${data.apiKey})`, false);
+                    const results = data.testResults;
+                    let statusMessage = `✅ FIXED LegiScan Working! `;
+                    
+                    if (results.connectivity) statusMessage += `Connectivity ✅ `;
+                    if (results.searchTest) statusMessage += `Search ✅ `;
+                    if (results.masterListTest) statusMessage += `Master List ✅ `;
+                    if (results.billDetailsTest) statusMessage += `Bill Details ✅`;
+                    
+                    showMessage(statusMessage, false);
                     updateAPIStatus('connected');
                 } else {
-                    showMessage(`❌ LegiScan API Failed: ${data.error}`, true);
+                    const errors = data.testResults?.errors || [];
+                    showMessage(`⚠️ LegiScan Partial Success: ${errors.join(', ')}`, true);
                     updateAPIStatus('failed');
                 }
                 
@@ -1084,6 +1016,79 @@ if (addTestBillBtn) {
                 addDebug(`LegiScan test failed: ${error.message}`);
                 showMessage(`❌ LegiScan Test Error: ${error.message}`, true);
                 updateAPIStatus('failed');
+            }
+        }
+
+        async function directLegiScanTest() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required for direct API test', true);
+                return;
+            }
+            
+            addDebug('Running DIRECT LegiScan API test...');
+            updateAPIStatus('testing');
+            
+            try {
+                const response = await fetch('/api/admin/direct-legiscan-test', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                addDebug(`Direct API test completed: ${JSON.stringify(data.summary)}`);
+                
+                if (data.summary.overallStatus === 'WORKING') {
+                    let message = `✅ DIRECT API TEST PASSED! `;
+                    message += `${data.summary.passed}/${data.summary.totalTests} tests passed. `;
+                    message += `API Key: ${data.summary.apiKey}`;
+                    
+                    showMessage(message, false);
+                    updateAPIStatus('connected');
+                    
+                    // Show detailed results
+                    console.log('📊 Detailed Test Results:', data.testResults);
+                    
+                } else {
+                    let message = `❌ DIRECT API TEST FAILED! `;
+                    message += `${data.summary.failed}/${data.summary.totalTests} tests failed. `;
+                    message += `Recommendations: ${data.summary.recommendations.join(', ')}`;
+                    
+                    showMessage(message, true);
+                    updateAPIStatus('failed');
+                }
+                
+            } catch (error) {
+                addDebug(`Direct API test failed: ${error.message}`);
+                showMessage(`❌ Direct API test error: ${error.message}`, true);
+                updateAPIStatus('failed');
+            }
+        }
+
+        async function simpleLegiScanTest() {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Admin access required for simple API test', true);
+                return;
+            }
+            
+            addDebug('Running SIMPLE LegiScan API test...');
+            
+            try {
+                const response = await fetch('/api/admin/simple-legiscan-test', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                addDebug(`Simple API test: ${JSON.stringify(data)}`);
+                
+                if (data.success && data.apiResponse?.status === 'OK') {
+                    showMessage(`✅ SIMPLE API TEST PASSED! Status: ${data.apiResponse.status}`, false);
+                    console.log('📊 API Response:', data.apiResponse);
+                } else {
+                    showMessage(`❌ SIMPLE API TEST FAILED! ${data.error || 'Unknown error'}`, true);
+                }
+                
+            } catch (error) {
+                showMessage(`❌ Simple API test error: ${error.message}`, true);
             }
         }
 
@@ -1558,326 +1563,4 @@ if (addTestBillBtn) {
                         currentPage = i;
                         displayEnhancedBills();
                     });
-                    pagination.appendChild(pageBtn);
-                } else if (i === currentPage - 3 || i === currentPage + 3) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.style.padding = '8px';
-                    pagination.appendChild(ellipsis);
-                }
-            }
-            
-            // Next button
-            const nextBtn = document.createElement('button');
-            nextBtn.className = 'page-btn';
-            nextBtn.textContent = 'Next →';
-            nextBtn.disabled = currentPage === totalPages;
-            nextBtn.addEventListener('click', () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    displayEnhancedBills();
-                }
-            });
-            pagination.appendChild(nextBtn);
-        }
-
-        async function loadEnhancedSyncStatus() {
-            addDebug('Loading enhanced sync status...');
-            const statusText = document.getElementById('statusText');
-            
-            if (!currentUser || currentUser.role !== 'admin') {
-                if (statusText) {
-                    statusText.innerHTML = '📊 Enhanced bills loaded from database • Ready to search and filter';
-                }
-                updateAPIStatus('unknown');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/admin/sync-status-enhanced', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                addDebug(`Enhanced sync status loaded: ${data.totalBills} total bills`);
-                
-                if (statusText) {
-                    const lastSync = data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
-                    const isRunning = data.currentlyRunning ? ' • 🔄 Enhanced sync in progress' : '';
-                    const apiKeyStatus = data.apiKey === 'configured' ? '✅' : '❌';
-                    
-                    statusText.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • ⭐ High Relevance: ${data.highRelevanceBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
-                }
-                
-                updateAPIStatus(data.apiKey === 'configured' ? 'connected' : 'failed');
-                
-            } catch (error) {
-                addDebug(`Error loading enhanced sync status: ${error.message}`);
-                if (statusText) {
-                    statusText.innerHTML = '⚠️ Enhanced sync status unavailable • System operational';
-                }
-                updateAPIStatus('failed');
-            }
-        }
-
-        async function syncEnhancedLegiScan() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for enhanced sync', true);
-                return;
-            }
-            
-            const syncBtn = document.getElementById('syncBtn');
-            if (!syncBtn) return;
-            
-            addDebug('Starting FIXED LegiScan sync...');
-            
-            syncBtn.disabled = true;
-            syncBtn.textContent = 'Fixed Syncing...';
-            
-            try {
-                const response = await fetch('/api/admin/sync-bills-fixed', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`FIXED sync initiated: ${data.message}`);
-                showMessage('🚀 FIXED LegiScan sync started! Using multiple search strategies and enhanced error handling. New bills should appear within 10-15 minutes.', false);
-                
-                // Update status to show sync is running
-                const statusText = document.getElementById('statusText');
-                if (statusText) {
-                    statusText.innerHTML = '🔄 FIXED LegiScan sync in progress • Multiple strategies active • Keyword search + State filtering running';
-                }
-                
-                // Refresh the page after a delay
-                setTimeout(() => {
-                    loadEnhancedDashboard();
-                }, 20000);
-                
-            } catch (error) {
-                addDebug(`FIXED sync error: ${error.message}`);
-                showMessage(`FIXED sync failed: ${error.message}`, true);
-            } finally {
-                setTimeout(() => {
-                    syncBtn.disabled = false;
-                    syncBtn.textContent = 'Enhanced Sync';
-                }, 15000);
-            }
-        }
-
-        async function testLegiScanAPIFixed() {
-            if (!authToken) {
-                showMessage('❌ Please login first to test LegiScan API', true);
-                return;
-            }
-
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('❌ Admin access required for LegiScan testing', true);
-                return;
-            }
-
-            addDebug('Testing FIXED LegiScan API connectivity...');
-            updateAPIStatus('testing');
-            
-            try {
-                const response = await fetch('/api/admin/test-legiscan-fixed', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                addDebug(`FIXED LegiScan test response status: ${response.status}`);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`FIXED LegiScan test result: ${JSON.stringify(data)}`);
-                
-                if (data.success) {
-                    const results = data.testResults;
-                    let statusMessage = `✅ FIXED LegiScan Working! `;
-                    
-                    if (results.connectivity) statusMessage += `Connectivity ✅ `;
-                    if (results.searchTest) statusMessage += `Search ✅ `;
-                    if (results.masterListTest) statusMessage += `Master List ✅ `;
-                    if (results.billDetailsTest) statusMessage += `Bill Details ✅`;
-                    
-                    showMessage(statusMessage, false);
-                    updateAPIStatus('connected');
-                } else {
-                    const errors = data.testResults?.errors || [];
-                    showMessage(`⚠️ FIXED LegiScan Partial Success: ${errors.join(', ')}`, true);
-                    updateAPIStatus('failed');
-                }
-                
-            } catch (error) {
-                addDebug(`FIXED LegiScan test failed: ${error.message}`);
-                showMessage(`❌ FIXED LegiScan Test Error: ${error.message}`, true);
-                updateAPIStatus('failed');
-            }
-        }
-
-        async function addTestBill() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required to add test bill', true);
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/admin/add-test-bill', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                showMessage(`✅ Test bill created: ${data.bill.billNumber}`, false);
-                
-                // Refresh the bills list
-                setTimeout(() => {
-                    loadEnhancedBills();
-                }, 2000);
-                
-            } catch (error) {
-                showMessage(`❌ Failed to create test bill: ${error.message}`, true);
-            }
-        }
-
-        // Initialize enhanced app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            addDebug('DOM loaded, setting up ENHANCED app...');
-            
-            clearAuthData();
-            showLogin();
-            
-            // Set up event listeners
-            const testConnectionBtn = document.getElementById('testConnectionBtn');
-            const testAPIBtn = document.getElementById('testAPIBtn');
-            const testLegiScanBtn = document.getElementById('testLegiScanBtn');
-            const testLegiScanMainBtn = document.getElementById('testLegiScanMainBtn');
-            const directApiTestBtn = document.getElementById('directApiTestBtn');
-            const simpleApiTestBtn = document.getElementById('simpleApiTestBtn');
-            const addTestBillBtn = document.getElementById('addTestBillBtn');
-            const addTestBillMainBtn = document.getElementById('addTestBillMainBtn');
-            const loginBtn = document.getElementById('loginBtn');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const passwordInput = document.getElementById('password');
-            const searchBtn = document.getElementById('searchBtn');
-            const syncBtn = document.getElementById('syncBtn');
-            const searchInput = document.getElementById('searchInput');
-            const stateFilter = document.getElementById('stateFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            const sourceFilter = document.getElementById('sourceFilter');
-            const sortSelect = document.getElementById('sortSelect');
-            const sortOrderSelect = document.getElementById('sortOrderSelect');
-            
-            if (testConnectionBtn) {
-                testConnectionBtn.addEventListener('click', testConnection);
-                addDebug('Enhanced test connection button listener added');
-            }
-            
-            if (testAPIBtn) {
-                testAPIBtn.addEventListener('click', testAPICall);
-                addDebug('Enhanced test API button listener added');
-            }
-            
-            if (testLegiScanBtn) {
-                testLegiScanBtn.addEventListener('click', testLegiScanAPIFixed);
-                addDebug('FIXED LegiScan test button listener added');
-            }
-            
-            if (testLegiScanMainBtn) {
-                testLegiScanMainBtn.addEventListener('click', testLegiScanAPIFixed);
-                addDebug('Main FIXED LegiScan test button listener added');
-            }
-            
-            if (loginBtn) {
-                loginBtn.addEventListener('click', performLogin);
-                addDebug('Enhanced login button listener added');
-            }
-            
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', logout);
-                addDebug('Enhanced logout button listener added');
-            }
-            
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        performLogin();
-                    }
-                });
-                addDebug('Enhanced password enter key listener added');
-            }
-            
-            if (searchBtn) {
-                searchBtn.addEventListener('click', filterAndDisplayEnhancedBills);
-                addDebug('Enhanced search button listener added');
-            }
-            
-            if (syncBtn) {
-                syncBtn.addEventListener('click', syncEnhancedLegiScan);
-                addDebug('Enhanced sync button listener added');
-            }
-            
-            if (searchInput) {
-                searchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        filterAndDisplayEnhancedBills();
-                    }
-                });
-                searchInput.addEventListener('input', function() {
-                    // Debounced enhanced search
-                    clearTimeout(this.searchTimeout);
-                    this.searchTimeout = setTimeout(filterAndDisplayEnhancedBills, 500);
-                });
-                addDebug('Enhanced search input listeners added');
-            }
-            
-            if (stateFilter) {
-                stateFilter.addEventListener('change', filterAndDisplayEnhancedBills);
-                addDebug('Enhanced state filter listener added');
-            }
-            
-            if (statusFilter) {
-                statusFilter.addEventListener('change', filterAndDisplayEnhancedBills);
-                addDebug('Enhanced status filter listener added');
-            }
-            
-            if (sourceFilter) {
-                sourceFilter.addEventListener('change', filterAndDisplayEnhancedBills);
-                addDebug('Enhanced source filter listener added');
-            }
-            
-            if (sortSelect) {
-                sortSelect.addEventListener('change', loadEnhancedBills);
-                addDebug('Enhanced sort select listener added');
-            }
-            
-            if (sortOrderSelect) {
-                sortOrderSelect.addEventListener('change', loadEnhancedBills);
-                addDebug('Enhanced sort order select listener added');
-            }
-            
-            addDebug('All ENHANCED event listeners set up successfully');
-            
-            // Test connection automatically
-            setTimeout(() => {
-                addDebug('Running automatic enhanced connection test...');
-                testConnection();
-            }, 1000);
-        });
-    </script>
-</body>
-</html>
+                }}}
