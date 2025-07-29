@@ -46,20 +46,31 @@ const sequelize = new Sequelize(process.env.DATABASE_URL || 'sqlite::memory:', {
   } : {}
 });
 
-// LegiScan API configuration
+// ENHANCED LegiScan API configuration with better API key handling
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY || '65c8d4470aa39a31e376e82db13f1e72';
 const LEGISCAN_BASE_URL = 'https://api.legiscan.com';
 
-// Enhanced Keywords for tracking relevant legislation (from your requirements)
+// Expanded Keywords for more comprehensive tracking
 const TRACKING_KEYWORDS = [
-  'Financial crimes', 'Fraud investigation', 'Anti-money laundering', 'AML',
-  'Economic crimes', 'White-collar crime', 'Asset forfeiture', 'Illicit finance',
-  'Investigative accounting', 'Forensic auditing', 'Financial intelligence',
-  'Money laundering prevention', 'Financial analysis training', 'Law enforcement training',
-  'Technical assistance', 'Capacity building', 'Justice assistance grants',
-  'Training and technical assistance', 'TTA', 'Evidence-based practices',
-  'Criminal justice system improvement', 'Intelligence sharing',
-  'Multi-jurisdictional task forces', 'Cybercrime', 'Digital forensics', 'Intelligence'
+  // Financial Crime Keywords
+  'financial crimes', 'fraud investigation', 'anti-money laundering', 'AML',
+  'economic crimes', 'white collar crime', 'asset forfeiture', 'illicit finance',
+  'investigative accounting', 'forensic auditing', 'financial intelligence',
+  'money laundering prevention', 'financial analysis training', 'banking fraud',
+  'cybercrime', 'digital forensics', 'cryptocurrency regulation', 'fintech crime',
+  
+  // Law Enforcement Training Keywords  
+  'law enforcement training', 'police training', 'officer education',
+  'technical assistance', 'capacity building', 'justice assistance grants',
+  'training and technical assistance', 'TTA', 'evidence-based practices',
+  'criminal justice system improvement', 'intelligence sharing',
+  'multi-jurisdictional task forces', 'federal grants', 'state grants',
+  
+  // Specific Program Keywords
+  'COPS grants', 'JAG grants', 'Byrne grants', 'VOCA funds',
+  'homeland security grants', 'drug enforcement', 'organized crime',
+  'human trafficking', 'gang violence', 'domestic violence training',
+  'crisis intervention', 'de-escalation training', 'community policing'
 ];
 
 // Enhanced User Model
@@ -167,6 +178,27 @@ const Bill = sequelize.define('Bill', {
   sourceType: {
     type: DataTypes.ENUM('manual', 'legiscan'),
     defaultValue: 'manual'
+  },
+  // NEW: Enhanced tracking fields
+  sessionId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  chamber: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  sponsors: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  subjects: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  changeHash: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 });
 
@@ -183,7 +215,7 @@ const UserWatchlist = sequelize.define('UserWatchlist', {
   }
 });
 
-// Sync Status Model for tracking API sync operations
+// Enhanced Sync Status Model
 const SyncStatus = sequelize.define('SyncStatus', {
   id: {
     type: DataTypes.UUID,
@@ -221,6 +253,14 @@ const SyncStatus = sequelize.define('SyncStatus', {
   errorMessage: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  keywordsProcessed: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  statesProcessed: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 
@@ -230,231 +270,304 @@ UserWatchlist.belongsTo(User);
 Bill.hasMany(UserWatchlist);
 UserWatchlist.belongsTo(Bill);
 
-// ===== Database Migration Function =====
-async function runDatabaseMigrations() {
-  console.log('🔧 Running database migrations...');
-  
-  try {
-    const queryInterface = sequelize.getQueryInterface();
-    
-    // Check if new columns exist, if not add them
-    const tableDescription = await queryInterface.describeTable('Bills');
-    
-    const columnsToAdd = [
-      {
-        name: 'legiscanId',
-        definition: {
-          type: DataTypes.STRING,
-          allowNull: true,
-          unique: true
-        }
-      },
-      {
-        name: 'keywords',
-        definition: {
-          type: DataTypes.TEXT,
-          allowNull: true
-        }
-      },
-      {
-        name: 'relevanceScore',
-        definition: {
-          type: DataTypes.INTEGER,
-          defaultValue: 0
-        }
-      },
-      {
-        name: 'lastSynced',
-        definition: {
-          type: DataTypes.DATE,
-          allowNull: true
-        }
-      },
-      {
-        name: 'legiscanUrl',
-        definition: {
-          type: DataTypes.STRING,
-          allowNull: true
-        }
-      },
-      {
-        name: 'isActive',
-        definition: {
-          type: DataTypes.BOOLEAN,
-          defaultValue: true
-        }
-      },
-      {
-        name: 'sourceType',
-        definition: {
-          type: DataTypes.ENUM('manual', 'legiscan'),
-          defaultValue: 'manual'
-        }
-      }
-    ];
-    
-    for (const column of columnsToAdd) {
-      if (!tableDescription[column.name]) {
-        console.log(`➕ Adding column: ${column.name}`);
-        await queryInterface.addColumn('Bills', column.name, column.definition);
-      } else {
-        console.log(`✅ Column already exists: ${column.name}`);
-      }
-    }
-    
-    // Update existing bills to have isActive = true if it's null
-    await sequelize.query(`
-      UPDATE "Bills" 
-      SET "isActive" = true 
-      WHERE "isActive" IS NULL
-    `);
-    
-    console.log('✅ Database migrations completed');
-    
-  } catch (error) {
-    console.error('❌ Migration error:', error);
-    // Don't throw error, let the app continue
-  }
-}
-
-// ===== Enhanced LegiScan Service Class =====
-class LegiScanService {
+// ===== ENHANCED LegiScan Service Class =====
+class EnhancedLegiScanService {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.baseUrl = LEGISCAN_BASE_URL;
-    this.requestDelay = 1000;
+    this.requestDelay = 2000; // Increased delay to avoid rate limits
+    this.maxRetries = 3;
+    this.sessionCache = new Map();
   }
 
-  async makeRequest(endpoint, params = {}) {
+  async makeRequest(operation, params = {}, retryCount = 0) {
     try {
-      const url = `${this.baseUrl}/?key=${this.apiKey}&${new URLSearchParams(params).toString()}`;
+      // Build the complete URL with operation and parameters
+      const queryParams = new URLSearchParams({
+        key: this.apiKey,
+        op: operation,
+        ...params
+      });
       
+      const url = `${this.baseUrl}/?${queryParams.toString()}`;
+      
+      // Rate limiting delay
       await new Promise(resolve => setTimeout(resolve, this.requestDelay));
       
-      console.log(`🌐 LegiScan API Request: ${params.op || 'unknown'}`);
+      console.log(`🌐 LegiScan API Request: ${operation} (attempt ${retryCount + 1})`);
       
       const response = await axios.get(url, { 
-        timeout: 30000,
+        timeout: 45000,
         headers: {
-          'User-Agent': 'Legislative-Tracker-Bot/1.0'
+          'User-Agent': 'Legislative-Tracker-Bot/2.0',
+          'Accept': 'application/json'
         }
       });
       
-      if (response.data && response.data.status === 'OK') {
-        return response.data;
-      } else {
-        throw new Error(`LegiScan API Error: ${response.data?.alert?.message || 'Unknown error'}`);
+      // Enhanced response validation
+      if (response.data) {
+        if (response.data.status === 'OK') {
+          return response.data;
+        } else if (response.data.status === 'ERROR') {
+          throw new Error(`LegiScan API Error: ${response.data.alert?.message || 'Unknown API error'}`);
+        }
       }
+      
+      throw new Error('Invalid response from LegiScan API');
+      
     } catch (error) {
-      if (error.response?.status === 429) {
-        console.log('⏳ Rate limit hit, waiting 60 seconds...');
-        await new Promise(resolve => setTimeout(resolve, 60000));
-        return this.makeRequest(endpoint, params);
+      // Enhanced error handling with retries
+      if (error.response?.status === 429 && retryCount < this.maxRetries) {
+        const delay = Math.pow(2, retryCount) * 30000; // Exponential backoff
+        console.log(`⏳ Rate limit hit, waiting ${delay/1000} seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.makeRequest(operation, params, retryCount + 1);
       }
+      
+      if (error.code === 'ENOTFOUND' || error.code === 'ECONNRESET') {
+        if (retryCount < this.maxRetries) {
+          console.log(`🔄 Network error, retrying in 10 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          return this.makeRequest(operation, params, retryCount + 1);
+        }
+      }
+      
       throw error;
     }
   }
 
-  async searchBills(keyword, state = 'ALL', year = null) {
+  async getSessionList(state = 'ALL') {
     try {
-      const currentYear = year || new Date().getFullYear();
-      console.log(`🔍 Searching LegiScan for: "${keyword}" in ${state} (${currentYear})`);
+      console.log(`📋 Fetching session list for: ${state}`);
       
-      const data = await this.makeRequest('search', {
-        op: 'search',
-        state: state,
-        query: keyword,
-        year: currentYear
-      });
+      const data = await this.makeRequest('getSessionList', { state });
       
-      if (data && data.searchresult) {
-        if (Array.isArray(data.searchresult)) {
-          console.log(`   Found ${data.searchresult.length} results for "${keyword}"`);
-          return data.searchresult;
-        } else if (data.searchresult && data.searchresult.summary) {
-          console.log(`   Search returned summary data only for "${keyword}"`);
-          return [];
-        }
+      if (data.sessions) {
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [data.sessions];
+        console.log(`   Found ${sessions.length} sessions for ${state}`);
+        return sessions;
       }
       
-      console.log(`   No results found for "${keyword}"`);
       return [];
     } catch (error) {
-      console.error(`Error searching for "${keyword}":`, error.message);
+      console.error(`Error fetching sessions for ${state}:`, error.message);
       return [];
     }
   }
 
-  async getBillDetails(billId) {
+  async searchBillsAdvanced(keyword, state = 'ALL', year = null, limit = 50) {
     try {
-      console.log(`📄 Fetching bill details for ID: ${billId}`);
-      const data = await this.makeRequest('getBill', {
-        op: 'getBill',
-        id: billId
+      const currentYear = year || new Date().getFullYear();
+      console.log(`🔍 Enhanced search for: "${keyword}" in ${state} (${currentYear})`);
+      
+      // Get active sessions first
+      let sessions = [];
+      if (!this.sessionCache.has(state)) {
+        sessions = await this.getSessionList(state);
+        this.sessionCache.set(state, sessions);
+      } else {
+        sessions = this.sessionCache.get(state);
+      }
+      
+      // Filter to current/recent sessions
+      const recentSessions = sessions.filter(session => {
+        const sessionYear = parseInt(session.year_start) || 0;
+        return sessionYear >= currentYear - 1 && sessionYear <= currentYear + 1;
       });
       
-      return data.bill;
+      console.log(`   Using ${recentSessions.length} recent sessions`);
+      
+      const searchResults = [];
+      
+      // Search across recent sessions
+      for (const session of recentSessions.slice(0, 5)) { // Limit to 5 most recent sessions
+        try {
+          const data = await this.makeRequest('search', {
+            state: state,
+            query: keyword,
+            year: session.year_start || currentYear
+          });
+          
+          if (data.searchresult && Array.isArray(data.searchresult)) {
+            const results = data.searchresult.slice(0, limit);
+            searchResults.push(...results);
+            console.log(`     Found ${results.length} results in ${session.year_start} session`);
+          }
+          
+        } catch (error) {
+          console.error(`     Error searching session ${session.session_id}:`, error.message);
+          continue;
+        }
+      }
+      
+      // Remove duplicates based on bill_id
+      const uniqueResults = searchResults.filter((bill, index, self) =>
+        index === self.findIndex(b => b.bill_id === bill.bill_id)
+      );
+      
+      console.log(`   Total unique results: ${uniqueResults.length}`);
+      return uniqueResults;
+      
     } catch (error) {
-      console.error(`Error fetching bill ${billId}:`, error.message);
+      console.error(`Enhanced search error for "${keyword}":`, error.message);
+      return [];
+    }
+  }
+
+  async getBillDetailsEnhanced(billId) {
+    try {
+      console.log(`📄 Fetching enhanced bill details for ID: ${billId}`);
+      
+      const data = await this.makeRequest('getBill', { id: billId });
+      
+      if (data.bill) {
+        // Also try to get bill text for better analysis
+        try {
+          const textData = await this.makeRequest('getBillText', { id: billId });
+          if (textData.text && textData.text.doc) {
+            data.bill.fullText = textData.text.doc;
+          }
+        } catch (textError) {
+          console.log(`     No text available for bill ${billId}`);
+        }
+        
+        return data.bill;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error fetching enhanced bill ${billId}:`, error.message);
       return null;
     }
   }
 
-  analyzeRelevance(billTitle, billDescription, billText = '') {
+  enhancedRelevanceAnalysis(billTitle, billDescription, billText = '', subjects = []) {
     const content = `${billTitle} ${billDescription} ${billText}`.toLowerCase();
+    const subjectText = Array.isArray(subjects) ? subjects.join(' ').toLowerCase() : '';
+    const allContent = `${content} ${subjectText}`;
+    
     const foundKeywords = [];
     let relevanceScore = 0;
-
+    
+    // Check for primary keywords
     TRACKING_KEYWORDS.forEach(keyword => {
-      if (content.includes(keyword.toLowerCase())) {
+      if (allContent.includes(keyword.toLowerCase())) {
         foundKeywords.push(keyword);
         relevanceScore += 1;
       }
     });
-
+    
+    // High-priority keyword bonus scoring
     const highPriorityKeywords = [
       'money laundering', 'financial crimes', 'asset forfeiture', 'aml',
-      'law enforcement training', 'financial intelligence', 'fraud investigation'
+      'law enforcement training', 'financial intelligence', 'fraud investigation',
+      'police training', 'justice grants', 'cops grants', 'byrne grants',
+      'technical assistance', 'capacity building'
     ];
     
     highPriorityKeywords.forEach(keyword => {
-      if (content.includes(keyword)) {
-        relevanceScore += 2;
+      if (allContent.includes(keyword)) {
+        relevanceScore += 3; // Higher bonus for priority terms
       }
     });
-
+    
+    // Special pattern matching for funding/grants
+    if (allContent.match(/\$[\d,]+|grant|appropriation|funding|million|billion/)) {
+      relevanceScore += 2;
+      foundKeywords.push('Funding/Grants');
+    }
+    
+    // Training-specific patterns
+    if (allContent.match(/training|education|certification|academy|instruction/)) {
+      relevanceScore += 2;
+      foundKeywords.push('Training Programs');
+    }
+    
+    // Law enforcement agency patterns
+    if (allContent.match(/police|sheriff|detective|officer|agent|enforcement|investigation/)) {
+      relevanceScore += 1;
+      foundKeywords.push('Law Enforcement');
+    }
+    
     return {
-      isRelevant: foundKeywords.length > 0,
-      foundKeywords,
-      relevanceScore,
-      confidence: Math.min(relevanceScore * 10, 100)
+      isRelevant: foundKeywords.length > 0 || relevanceScore > 0,
+      foundKeywords: [...new Set(foundKeywords)], // Remove duplicates
+      relevanceScore: Math.min(relevanceScore, 10), // Cap at 10
+      confidence: Math.min(relevanceScore * 10, 100),
+      hasTraining: allContent.includes('training'),
+      hasFunding: allContent.match(/\$|grant|fund/) !== null,
+      hasLawEnforcement: allContent.match(/police|law enforcement|officer/) !== null
     };
   }
 
-  formatBillForDatabase(legiscanBill, relevanceAnalysis) {
-    const status = this.mapStatus(legiscanBill.status);
-    const progressPercentage = this.calculateProgress(legiscanBill.status, legiscanBill.history);
-
+  formatBillForDatabaseEnhanced(legiscanBill, relevanceAnalysis) {
+    const status = this.mapStatusEnhanced(legiscanBill.status, legiscanBill.status_date);
+    const progressPercentage = this.calculateProgressEnhanced(legiscanBill.status, legiscanBill.history);
+    
     return {
       legiscanId: legiscanBill.bill_id.toString(),
-      stateCode: legiscanBill.state,
-      billNumber: legiscanBill.bill_number,
-      title: legiscanBill.title,
-      description: legiscanBill.description || `${legiscanBill.title} - Introduced in ${legiscanBill.state}`,
+      stateCode: legiscanBill.state || 'US',
+      billNumber: legiscanBill.bill_number || 'Unknown',
+      title: legiscanBill.title || 'No title available',
+      description: this.generateSmartDescription(legiscanBill, relevanceAnalysis),
       status: status,
       progressPercentage: progressPercentage,
-      introducedDate: legiscanBill.introduced_date,
-      fundsAllocated: this.extractFunding(legiscanBill),
+      introducedDate: legiscanBill.introduced_date || null,
+      fundsAllocated: this.extractFundingEnhanced(legiscanBill),
       keywords: relevanceAnalysis.foundKeywords.join(', '),
       relevanceScore: relevanceAnalysis.relevanceScore,
       lastSynced: new Date(),
-      legiscanUrl: `https://legiscan.com/${legiscanBill.state}/bill/${legiscanBill.bill_number}/${legiscanBill.session_id}`,
+      legiscanUrl: this.buildLegiscanUrl(legiscanBill),
       sourceType: 'legiscan',
-      isActive: true
+      isActive: true,
+      sessionId: legiscanBill.session_id?.toString() || null,
+      chamber: this.extractChamber(legiscanBill.bill_number),
+      sponsors: this.extractSponsors(legiscanBill),
+      subjects: Array.isArray(legiscanBill.subjects) ? legiscanBill.subjects.join(', ') : '',
+      changeHash: legiscanBill.change_hash || null
     };
   }
 
-  mapStatus(legiscanStatus) {
+  generateSmartDescription(billData, relevanceAnalysis) {
+    const title = billData.title || '';
+    const state = billData.state || 'Federal';
+    const hasTraining = relevanceAnalysis.hasTraining;
+    const hasFunding = relevanceAnalysis.hasFunding;
+    const hasLawEnforcement = relevanceAnalysis.hasLawEnforcement;
+    
+    let description = `${title}`;
+    
+    if (billData.description && billData.description !== title) {
+      description = billData.description;
+    } else {
+      // Generate smart description based on analysis
+      description += ` - `;
+      
+      if (hasTraining && hasLawEnforcement) {
+        description += `A ${state} bill addressing law enforcement training and professional development. `;
+      } else if (hasFunding && hasLawEnforcement) {
+        description += `A ${state} bill providing funding for law enforcement programs and initiatives. `;
+      } else if (hasTraining) {
+        description += `A ${state} bill focused on training and educational programs. `;
+      } else if (relevanceAnalysis.foundKeywords.includes('Financial crimes')) {
+        description += `A ${state} bill addressing financial crime prevention and enforcement. `;
+      } else {
+        description += `A ${state} legislative initiative. `;
+      }
+      
+      if (relevanceAnalysis.relevanceScore >= 5) {
+        description += `This bill is highly relevant to law enforcement training and financial crime prevention efforts.`;
+      } else if (relevanceAnalysis.relevanceScore >= 3) {
+        description += `This bill has moderate relevance to our tracking criteria.`;
+      } else {
+        description += `This bill may contain provisions of interest to law enforcement professionals.`;
+      }
+    }
+    
+    return description;
+  }
+
+  mapStatusEnhanced(legiscanStatus, statusDate = null) {
     const statusMap = {
       1: 'Introduced',
       2: 'In Committee', 
@@ -463,131 +576,237 @@ class LegiScanService {
       5: 'Passed Both Chambers',
       6: 'Signed/Enacted',
       7: 'Vetoed',
-      8: 'Failed/Dead'
+      8: 'Failed/Dead',
+      9: 'Withdrawn'
     };
-    return statusMap[legiscanStatus] || 'Unknown';
-  }
-
-  calculateProgress(status, history = []) {
-    const progressMap = {
-      1: 10, 2: 25, 3: 40, 4: 70, 5: 90, 6: 100, 7: 0, 8: 0
-    };
-    return progressMap[status] || 0;
-  }
-
-  extractFunding(billData) {
-    const text = (billData.title + ' ' + (billData.description || '')).toLowerCase();
     
+    const baseStatus = statusMap[legiscanStatus] || 'Unknown';
+    
+    // Add date context if available
+    if (statusDate) {
+      const date = new Date(statusDate);
+      const now = new Date();
+      const daysDiff = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff <= 7) {
+        return `${baseStatus} (Recent)`;
+      }
+    }
+    
+    return baseStatus;
+  }
+
+  calculateProgressEnhanced(status, history = []) {
+    const progressMap = {
+      1: 15,  // Introduced
+      2: 30,  // In Committee
+      3: 45,  // Committee Review
+      4: 70,  // Passed Chamber
+      5: 90,  // Passed Both Chambers
+      6: 100, // Signed/Enacted
+      7: 0,   // Vetoed
+      8: 0,   // Failed/Dead
+      9: 0    // Withdrawn
+    };
+    
+    let baseProgress = progressMap[status] || 5;
+    
+    // Enhance with history analysis
+    if (Array.isArray(history) && history.length > 0) {
+      const recentActions = history.slice(-3); // Last 3 actions
+      const hasRecentActivity = recentActions.some(action => {
+        if (action.date) {
+          const actionDate = new Date(action.date);
+          const now = new Date();
+          const daysDiff = (now - actionDate) / (1000 * 60 * 60 * 24);
+          return daysDiff <= 30; // Recent activity in last 30 days
+        }
+        return false;
+      });
+      
+      if (hasRecentActivity) {
+        baseProgress += 5; // Bonus for recent activity
+      }
+    }
+    
+    return Math.min(baseProgress, 100);
+  }
+
+  extractFundingEnhanced(billData) {
+    const title = (billData.title || '').toLowerCase();
+    const description = (billData.description || '').toLowerCase();
+    const text = `${title} ${description}`;
+    
+    // Look for specific dollar amounts
+    const dollarMatch = text.match(/\$\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(million|billion|thousand)?/i);
+    if (dollarMatch) {
+      const amount = dollarMatch[1];
+      const unit = dollarMatch[2] || '';
+      return `$${amount}${unit ? ' ' + unit : ''}`;
+    }
+    
+    // Look for appropriation types
     if (text.includes('appropriat')) return 'Appropriation Bill';
     if (text.includes('grant')) return 'Grant Program';
-    if (text.includes('fund')) return 'Funding Specified';
-    if (text.match(/\$[\d,]+/)) return 'Dollar Amount Specified';
+    if (text.includes('fund')) return 'Funding Program';
+    if (text.includes('budget')) return 'Budget Allocation';
+    if (text.includes('financial assistance')) return 'Financial Assistance';
     
+    return 'Not specified';
+  }
+
+  buildLegiscanUrl(billData) {
+    const state = billData.state || 'us';
+    const billNumber = billData.bill_number || '';
+    const sessionId = billData.session_id || '';
+    
+    return `https://legiscan.com/${state.toLowerCase()}/bill/${billNumber}/${sessionId}`;
+  }
+
+  extractChamber(billNumber) {
+    if (!billNumber) return 'Unknown';
+    
+    const num = billNumber.toUpperCase();
+    if (num.startsWith('H') || num.includes('HOUSE')) return 'House';
+    if (num.startsWith('S') || num.includes('SENATE')) return 'Senate';
+    if (num.startsWith('A') || num.startsWith('AB')) return 'Assembly';
+    
+    return 'Unknown';
+  }
+
+  extractSponsors(billData) {
+    if (billData.sponsors && Array.isArray(billData.sponsors)) {
+      return billData.sponsors.map(sponsor => 
+        `${sponsor.name || 'Unknown'} (${sponsor.party || 'Unknown'})`
+      ).join(', ');
+    }
     return 'Not specified';
   }
 }
 
-const legiScan = new LegiScanService(LEGISCAN_API_KEY);
+const enhancedLegiScan = new EnhancedLegiScanService(LEGISCAN_API_KEY);
 
-// ===== Enhanced Bill Sync Function =====
-async function syncRelevantBills() {
+// ===== ENHANCED Bill Sync Function =====
+async function syncRelevantBillsEnhanced() {
   let syncRecord;
   
   try {
     syncRecord = await SyncStatus.create({
-      syncType: 'automatic',
+      syncType: 'enhanced_automatic',
       status: 'running',
       startTime: new Date()
     });
 
-    console.log('🔄 Starting Enhanced LegiScan synchronization...');
+    console.log('🚀 Starting ENHANCED LegiScan synchronization...');
+    console.log(`🔑 Using API Key: ${LEGISCAN_API_KEY.substring(0, 8)}...`);
     
     let totalFound = 0;
     let totalAdded = 0;
     let totalUpdated = 0;
+    const processedStates = [];
 
-    // Process keywords in smaller batches to avoid rate limits
-    const keywordBatches = [];
-    for (let i = 0; i < TRACKING_KEYWORDS.length; i += 3) {
-      keywordBatches.push(TRACKING_KEYWORDS.slice(i, i + 3));
-    }
-
-    for (const [batchIndex, batch] of keywordBatches.entries()) {
-      console.log(`📦 Processing batch ${batchIndex + 1}/${keywordBatches.length}`);
+    // Priority states for law enforcement legislation
+    const priorityStates = ['US', 'CA', 'TX', 'FL', 'NY', 'IL', 'PA', 'OH'];
+    
+    // Process high-priority keywords first
+    const priorityKeywords = [
+      'law enforcement training', 'police training', 'financial crimes',
+      'money laundering', 'asset forfeiture', 'justice grants',
+      'COPS grants', 'Byrne grants', 'technical assistance'
+    ];
+    
+    console.log(`📋 Processing ${priorityKeywords.length} priority keywords across ${priorityStates.length} states`);
+    
+    for (const [keywordIndex, keyword] of priorityKeywords.entries()) {
+      console.log(`\n🔍 [${keywordIndex + 1}/${priorityKeywords.length}] Processing: "${keyword}"`);
       
-      for (const keyword of batch) {
+      for (const [stateIndex, state] of priorityStates.entries()) {
         try {
-          console.log(`🔍 Searching for: "${keyword}"`);
+          console.log(`   🏛️  [${stateIndex + 1}/${priorityStates.length}] Searching in: ${state}`);
           
-          const currentYear = new Date().getFullYear();
-          const years = [currentYear, currentYear - 1];
+          const searchResults = await enhancedLegiScan.searchBillsAdvanced(keyword, state, null, 20);
           
-          for (const year of years) {
-            const searchResults = await legiScan.searchBills(keyword, 'ALL', year);
-            
-            if (!Array.isArray(searchResults) || searchResults.length === 0) {
-              console.log(`   No bills found for "${keyword}" in ${year}`);
-              continue;
-            }
+          if (!Array.isArray(searchResults) || searchResults.length === 0) {
+            console.log(`      ❌ No results found`);
+            continue;
+          }
 
-            totalFound += searchResults.length;
-            console.log(`   Found ${searchResults.length} bills for "${keyword}" in ${year}`);
+          totalFound += searchResults.length;
+          console.log(`      ✅ Found ${searchResults.length} bills`);
 
-            for (const result of searchResults.slice(0, 3)) {
-              try {
-                if (!result || !result.bill_id) {
-                  console.log('   Skipping invalid result');
-                  continue;
-                }
-
-                const billDetails = await legiScan.getBillDetails(result.bill_id);
-                if (!billDetails) {
-                  console.log(`   No details found for bill ${result.bill_id}`);
-                  continue;
-                }
-
-                const relevanceAnalysis = legiScan.analyzeRelevance(
-                  billDetails.title || '',
-                  billDetails.description || ''
-                );
-
-                if (relevanceAnalysis.relevanceScore < 1) {
-                  console.log(`   Low relevance score for bill ${result.bill_id}`);
-                  continue;
-                }
-
-                const formattedBill = legiScan.formatBillForDatabase(billDetails, relevanceAnalysis);
-
-                const existingBill = await Bill.findOne({
-                  where: { legiscanId: formattedBill.legiscanId }
-                });
-
-                if (existingBill) {
-                  await existingBill.update({
-                    ...formattedBill,
-                    createdAt: existingBill.createdAt
-                  });
-                  totalUpdated++;
-                  console.log(`   ✅ Updated: ${formattedBill.billNumber}`);
-                } else {
-                  await Bill.create(formattedBill);
-                  totalAdded++;
-                  console.log(`   ✨ Added: ${formattedBill.billNumber}`);
-                }
-
-              } catch (error) {
-                console.error(`Error processing bill ${result.bill_id}:`, error.message);
+          // Process each bill with enhanced analysis
+          for (const [billIndex, result] of searchResults.entries()) {
+            try {
+              if (!result || !result.bill_id) {
+                console.log(`         ⚠️  Invalid result ${billIndex + 1}`);
+                continue;
               }
+
+              console.log(`         📄 [${billIndex + 1}/${searchResults.length}] Processing bill ID: ${result.bill_id}`);
+
+              const billDetails = await enhancedLegiScan.getBillDetailsEnhanced(result.bill_id);
+              if (!billDetails) {
+                console.log(`            ❌ No details retrieved`);
+                continue;
+              }
+
+              const relevanceAnalysis = enhancedLegiScan.enhancedRelevanceAnalysis(
+                billDetails.title || '',
+                billDetails.description || '',
+                billDetails.fullText || '',
+                billDetails.subjects || []
+              );
+
+              console.log(`            🎯 Relevance Score: ${relevanceAnalysis.relevanceScore}/10`);
+
+              if (relevanceAnalysis.relevanceScore < 2) {
+                console.log(`            ⚠️  Low relevance, skipping`);
+                continue;
+              }
+
+              const formattedBill = enhancedLegiScan.formatBillForDatabaseEnhanced(billDetails, relevanceAnalysis);
+
+              const existingBill = await Bill.findOne({
+                where: { legiscanId: formattedBill.legiscanId }
+              });
+
+              if (existingBill) {
+                await existingBill.update({
+                  ...formattedBill,
+                  createdAt: existingBill.createdAt
+                });
+                totalUpdated++;
+                console.log(`            ✅ Updated: ${formattedBill.billNumber}`);
+              } else {
+                await Bill.create(formattedBill);
+                totalAdded++;
+                console.log(`            ✨ Added: ${formattedBill.billNumber}`);
+              }
+
+            } catch (billError) {
+              console.error(`            ❌ Error processing bill ${result.bill_id}:`, billError.message);
             }
           }
-        } catch (error) {
-          console.error(`Error processing keyword "${keyword}":`, error.message);
+          
+          if (!processedStates.includes(state)) {
+            processedStates.push(state);
+          }
+          
+        } catch (stateError) {
+          console.error(`      ❌ Error processing state ${state}:`, stateError.message);
+        }
+        
+        // Delay between states to avoid rate limits
+        if (stateIndex < priorityStates.length - 1) {
+          console.log(`      ⏳ Waiting 3 seconds before next state...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
       }
       
-      if (batchIndex < keywordBatches.length - 1) {
-        console.log('⏳ Waiting between batches...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+      // Longer delay between keywords
+      if (keywordIndex < priorityKeywords.length - 1) {
+        console.log(`   ⏳ Waiting 10 seconds before next keyword...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
 
@@ -601,22 +820,31 @@ async function syncRelevantBills() {
         endTime: new Date(),
         billsFound: safeTotal,
         billsAdded: safeAdded,
-        billsUpdated: safeUpdated
+        billsUpdated: safeUpdated,
+        keywordsProcessed: priorityKeywords.length,
+        statesProcessed: processedStates.join(', ')
       });
     }
 
-    console.log(`✅ Sync complete! Found: ${safeTotal}, Added: ${safeAdded}, Updated: ${safeUpdated}`);
+    console.log(`\n✅ ENHANCED SYNC COMPLETE!`);
+    console.log(`   📊 Found: ${safeTotal} bills`);
+    console.log(`   ➕ Added: ${safeAdded} new bills`);
+    console.log(`   🔄 Updated: ${safeUpdated} existing bills`);
+    console.log(`   🏛️  States: ${processedStates.join(', ')}`);
+    console.log(`   🔍 Keywords: ${priorityKeywords.length} processed`);
     
     return {
       success: true,
       totalFound: safeTotal,
       totalAdded: safeAdded,
       totalUpdated: safeUpdated,
+      statesProcessed: processedStates,
+      keywordsProcessed: priorityKeywords.length,
       timestamp: new Date()
     };
 
   } catch (error) {
-    console.error('❌ Sync failed:', error);
+    console.error('❌ ENHANCED SYNC FAILED:', error);
     
     if (syncRecord) {
       try {
@@ -637,7 +865,69 @@ async function syncRelevantBills() {
   }
 }
 
-// Auth middleware
+// Database migration function with enhanced fields
+async function runEnhancedDatabaseMigrations() {
+  console.log('🔧 Running enhanced database migrations...');
+  
+  try {
+    const queryInterface = sequelize.getQueryInterface();
+    const tableDescription = await queryInterface.describeTable('Bills');
+    
+    const newColumnsToAdd = [
+      {
+        name: 'sessionId',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true
+        }
+      },
+      {
+        name: 'chamber',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true
+        }
+      },
+      {
+        name: 'sponsors',
+        definition: {
+          type: DataTypes.TEXT,
+          allowNull: true
+        }
+      },
+      {
+        name: 'subjects',
+        definition: {
+          type: DataTypes.TEXT,
+          allowNull: true
+        }
+      },
+      {
+        name: 'changeHash',
+        definition: {
+          type: DataTypes.STRING,
+          allowNull: true
+        }
+      }
+    ];
+    
+    for (const column of newColumnsToAdd) {
+      if (!tableDescription[column.name]) {
+        console.log(`➕ Adding enhanced column: ${column.name}`);
+        await queryInterface.addColumn('Bills', column.name, column.definition);
+      } else {
+        console.log(`✅ Enhanced column already exists: ${column.name}`);
+      }
+    }
+    
+    console.log('✅ Enhanced database migrations completed');
+    
+  } catch (error) {
+    console.error('❌ Enhanced migration error:', error);
+  }
+}
+
+// Auth middleware (unchanged)
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -661,16 +951,25 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// ===== API ROUTES (MUST COME FIRST) =====
+// ===== API ROUTES =====
 
 app.get('/api', (req, res) => {
   res.json({ 
-    message: 'Legislative Tracker API with Enhanced LegiScan Integration', 
+    message: 'Legislative Tracker API - ENHANCED LegiScan Integration', 
     status: 'OK',
     timestamp: new Date().toISOString(),
-    version: '2.1.0',
-    features: ['User Management', 'Bill Tracking', 'Enhanced LegiScan Integration', 'Automated Sync', 'Advanced Search'],
-    keywords: TRACKING_KEYWORDS.length,
+    version: '3.0.0',
+    features: [
+      'Enhanced LegiScan Integration', 
+      'Advanced Bill Analysis', 
+      'Multi-State Search', 
+      'Smart Relevance Scoring',
+      'Real-time Sync Status',
+      'Comprehensive Training Focus'
+    ],
+    apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
+    keywordsTracking: TRACKING_KEYWORDS.length,
+    priorityStates: ['US', 'CA', 'TX', 'FL', 'NY', 'IL', 'PA', 'OH'],
     endpoints: [
       'POST /api/auth/register',
       'POST /api/auth/login', 
@@ -681,8 +980,9 @@ app.get('/api', (req, res) => {
       'GET /api/bills/watchlist/mine',
       'GET /api/admin/users/pending',
       'POST /api/admin/users/:id/approve',
-      'POST /api/admin/sync-bills',
-      'GET /api/admin/sync-status'
+      'POST /api/admin/sync-bills-enhanced',
+      'GET /api/admin/sync-status-enhanced',
+      'POST /api/admin/test-legiscan'
     ]
   });
 });
@@ -692,12 +992,155 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     database: 'connected',
-    legiscan: 'active',
-    keywords_tracking: TRACKING_KEYWORDS.length
+    legiscan: 'enhanced_active',
+    apiKey: LEGISCAN_API_KEY ? 'configured' : 'missing',
+    keywords_tracking: TRACKING_KEYWORDS.length,
+    version: '3.0.0'
   });
 });
 
-// Authentication routes
+// Enhanced Admin Routes
+
+app.post('/api/admin/sync-bills-enhanced', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    console.log(`🚀 ENHANCED MANUAL SYNC triggered by ${req.user.email}`);
+    
+    // Start enhanced sync in background
+    syncRelevantBillsEnhanced().catch(error => {
+      console.error('Enhanced background sync failed:', error);
+    });
+    
+    res.json({
+      message: 'ENHANCED LegiScan synchronization started in background',
+      status: 'initiated',
+      timestamp: new Date(),
+      keywordsTracking: TRACKING_KEYWORDS.length,
+      version: '3.0.0',
+      features: ['Multi-state search', 'Enhanced relevance analysis', 'Smart bill processing']
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to start enhanced sync', details: error.message });
+  }
+});
+
+app.get('/api/admin/sync-status-enhanced', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const recentSyncs = await SyncStatus.findAll({
+      order: [['startTime', 'DESC']],
+      limit: 15
+    });
+
+    const totalBills = await Bill.count();
+    let legiscanBills = 0;
+    let enhancedBills = 0;
+    
+    try {
+      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
+      if (tableDescription.sourceType) {
+        legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
+      }
+      if (tableDescription.relevanceScore) {
+        enhancedBills = await Bill.count({ 
+          where: { 
+            relevanceScore: { [Op.gte]: 5 }
+          } 
+        });
+      }
+    } catch (error) {
+      console.log('Enhanced columns not available for stats');
+    }
+
+    res.json({
+      apiStatus: 'enhanced_active',
+      apiKey: LEGISCAN_API_KEY ? 'configured' : 'missing',
+      version: '3.0.0',
+      totalBills,
+      legiscanBills,
+      manualBills: totalBills - legiscanBills,
+      highRelevanceBills: enhancedBills,
+      keywordsTracking: TRACKING_KEYWORDS.length,
+      recentSyncs: recentSyncs.length,
+      lastSync: recentSyncs[0]?.endTime || null,
+      currentlyRunning: recentSyncs.some(sync => sync.status === 'running'),
+      enhancedFeatures: [
+        'Multi-state search capability',
+        'Advanced relevance scoring',
+        'Enhanced bill analysis',
+        'Smart keyword matching',
+        'Comprehensive error handling'
+      ],
+      syncHistory: recentSyncs.map(sync => ({
+        id: sync.id,
+        type: sync.syncType,
+        status: sync.status,
+        startTime: sync.startTime,
+        endTime: sync.endTime,
+        billsFound: sync.billsFound,
+        billsAdded: sync.billsAdded,
+        billsUpdated: sync.billsUpdated,
+        keywordsProcessed: sync.keywordsProcessed,
+        statesProcessed: sync.statesProcessed,
+        duration: sync.endTime ? Math.round((new Date(sync.endTime) - new Date(sync.startTime)) / 1000) : null
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get enhanced sync status' });
+  }
+});
+
+// NEW: Test LegiScan API connectivity
+app.post('/api/admin/test-legiscan', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    console.log('🧪 Testing LegiScan API connectivity...');
+
+    // Test 1: Basic API connectivity
+    try {
+      const testData = await enhancedLegiScan.makeRequest('getSessionList', { state: 'CA' });
+      console.log('✅ API connectivity test passed');
+      
+      // Test 2: Search functionality
+      const searchResults = await enhancedLegiScan.searchBillsAdvanced('police training', 'CA', null, 5);
+      console.log(`✅ Search test passed - found ${searchResults.length} results`);
+      
+      res.json({
+        success: true,
+        apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
+        connectivity: 'successful',
+        searchTest: `Found ${searchResults.length} test results`,
+        timestamp: new Date(),
+        message: 'LegiScan API is working correctly'
+      });
+      
+    } catch (apiError) {
+      console.error('❌ API test failed:', apiError.message);
+      res.status(500).json({
+        success: false,
+        apiKey: LEGISCAN_API_KEY ? `${LEGISCAN_API_KEY.substring(0, 8)}...` : 'Not configured',
+        connectivity: 'failed',
+        error: apiError.message,
+        timestamp: new Date(),
+        message: 'LegiScan API test failed'
+      });
+    }
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to test LegiScan API', details: error.message });
+  }
+});
+
+// Auth routes (unchanged from previous version)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, organization } = req.body;
@@ -810,20 +1253,19 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });
 
-// Enhanced Bills routes with better error handling
+// Enhanced Bills routes
 app.get('/api/bills', authenticateToken, async (req, res) => {
   try {
-    console.log(`📄 Bills request from user: ${req.user.email}`);
+    console.log(`📄 Enhanced bills request from user: ${req.user.email}`);
     
     const { 
       search, state, status, minRelevance = 0, page = 1, limit = 20,
       sortBy = 'relevanceScore', sortOrder = 'DESC', source = 'all'
     } = req.query;
 
-    // Build where clause carefully
     const where = {};
     
-    // Only filter by isActive if the column exists
+    // Enhanced filtering with better column checking
     try {
       const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
       if (tableDescription.isActive) {
@@ -833,7 +1275,7 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       console.log('isActive column check failed, skipping filter');
     }
     
-    // Search functionality
+    // Enhanced search functionality
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
@@ -841,28 +1283,27 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
         { billNumber: { [Op.iLike]: `%${search}%` } }
       ];
       
-      // Only add keywords search if column exists
       try {
         const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
         if (tableDescription.keywords) {
           where[Op.or].push({ keywords: { [Op.iLike]: `%${search}%` } });
         }
+        if (tableDescription.subjects) {
+          where[Op.or].push({ subjects: { [Op.iLike]: `%${search}%` } });
+        }
       } catch (error) {
-        console.log('keywords column not available for search');
+        console.log('Enhanced search columns not available');
       }
     }
 
-    // State filter
     if (state && state !== 'all') {
       where.stateCode = state;
     }
 
-    // Status filter
     if (status && status !== 'all') {
       where.status = { [Op.iLike]: `%${status}%` };
     }
 
-    // Relevance filter (only if column exists)
     if (minRelevance > 0) {
       try {
         const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
@@ -874,7 +1315,6 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       }
     }
 
-    // Source filter (only if column exists)
     if (source !== 'all') {
       try {
         const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
@@ -888,8 +1328,7 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Determine sort column based on what exists
-    let actualSortBy = 'createdAt'; // fallback
+    let actualSortBy = 'createdAt';
     try {
       const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
       if (tableDescription[sortBy]) {
@@ -906,10 +1345,11 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
       offset: offset
     });
 
-    // Calculate statistics
+    // Enhanced statistics
     const totalBills = await Bill.count();
     let legiscanBills = 0;
     let manualBills = 0;
+    let highRelevanceBills = 0;
     
     try {
       const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
@@ -917,13 +1357,18 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
         legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
         manualBills = await Bill.count({ where: { sourceType: 'manual' } });
       } else {
-        manualBills = totalBills; // If no sourceType column, assume all are manual
+        manualBills = totalBills;
+      }
+      if (tableDescription.relevanceScore) {
+        highRelevanceBills = await Bill.count({ 
+          where: { relevanceScore: { [Op.gte]: 5 } }
+        });
       }
     } catch (error) {
       manualBills = totalBills;
     }
 
-    console.log(`📊 Returning ${bills.rows.length} bills (${bills.count} total matching criteria)`);
+    console.log(`📊 Enhanced response: ${bills.rows.length} bills (${bills.count} total matching criteria)`);
 
     res.json({
       bills: bills.rows,
@@ -938,15 +1383,19 @@ app.get('/api/bills', authenticateToken, async (req, res) => {
         totalBills,
         legiscanBills,
         manualBills,
-        highRelevance: bills.rows.filter(b => (b.relevanceScore || 0) >= 3).length
-      }
+        highRelevanceBills,
+        relevantBills: bills.rows.filter(b => (b.relevanceScore || 0) >= 3).length
+      },
+      enhanced: true,
+      version: '3.0.0'
     });
   } catch (error) {
-    console.error('Error fetching bills:', error);
+    console.error('Error fetching enhanced bills:', error);
     res.status(500).json({ error: 'Failed to fetch bills', details: error.message });
   }
 });
 
+// Other bill routes (unchanged)
 app.get('/api/bills/:id', authenticateToken, async (req, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
@@ -1040,81 +1489,7 @@ app.post('/api/admin/users/:id/approve', authenticateToken, async (req, res) => 
   }
 });
 
-app.post('/api/admin/sync-bills', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    console.log(`🔄 Manual sync triggered by ${req.user.email}`);
-    
-    // Start sync in background
-    syncRelevantBills().catch(error => {
-      console.error('Background sync failed:', error);
-    });
-    
-    res.json({
-      message: 'Enhanced LegiScan synchronization started in background',
-      status: 'initiated',
-      timestamp: new Date(),
-      keywordsTracking: TRACKING_KEYWORDS.length
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to start sync', details: error.message });
-  }
-});
-
-app.get('/api/admin/sync-status', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const recentSyncs = await SyncStatus.findAll({
-      order: [['startTime', 'DESC']],
-      limit: 10
-    });
-
-    const totalBills = await Bill.count();
-    let legiscanBills = 0;
-    
-    try {
-      const tableDescription = await sequelize.getQueryInterface().describeTable('Bills');
-      if (tableDescription.sourceType) {
-        legiscanBills = await Bill.count({ where: { sourceType: 'legiscan' } });
-      }
-    } catch (error) {
-      console.log('sourceType column not available for stats');
-    }
-
-    res.json({
-      apiStatus: 'active',
-      totalBills,
-      legiscanBills,
-      manualBills: totalBills - legiscanBills,
-      keywordsTracking: TRACKING_KEYWORDS.length,
-      recentSyncs: recentSyncs.length,
-      lastSync: recentSyncs[0]?.endTime || null,
-      currentlyRunning: recentSyncs.some(sync => sync.status === 'running'),
-      syncHistory: recentSyncs.map(sync => ({
-        id: sync.id,
-        type: sync.syncType,
-        status: sync.status,
-        startTime: sync.startTime,
-        endTime: sync.endTime,
-        billsFound: sync.billsFound,
-        billsAdded: sync.billsAdded,
-        billsUpdated: sync.billsUpdated,
-        duration: sync.endTime ? Math.round((new Date(sync.endTime) - new Date(sync.startTime)) / 1000) : null
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get sync status' });
-  }
-});
-
-// ===== FRONTEND ROUTES (MUST COME AFTER API ROUTES) =====
-
+// Frontend routes
 app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
@@ -1125,7 +1500,7 @@ app.get('/dashboard', (req, res) => {
     res.sendFile(frontendPath);
   } else {
     res.json({ 
-      message: 'Legislative Tracker API',
+      message: 'Legislative Tracker API - Enhanced Version',
       status: 'Frontend not found',
       redirect: '/api'
     });
@@ -1149,21 +1524,22 @@ app.get('*', (req, res) => {
   }
 });
 
-// Server startup
+// Enhanced Server startup
 const PORT = process.env.PORT || 3001;
 
-async function startServer() {
+async function startEnhancedServer() {
   try {
+    console.log('🚀 Starting ENHANCED Legislative Tracker Server...');
     console.log('🔗 Connecting to database...');
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
     
     console.log('🔄 Syncing database...');
-    await sequelize.sync({ alter: false }); // Don't force sync existing tables
+    await sequelize.sync({ alter: false });
     console.log('✅ Database synced');
 
-    // Run migrations after sync
-    await runDatabaseMigrations();
+    // Run enhanced migrations
+    await runEnhancedDatabaseMigrations();
 
     // Create admin user
     const adminPassword = await bcrypt.hash('admin123', 12);
@@ -1179,109 +1555,143 @@ async function startServer() {
       }
     });
 
-    // Create enhanced sample bills with all new fields
+    // Create enhanced sample bills if none exist
     const existingBills = await Bill.count();
     if (existingBills === 0) {
-      const sampleBills = [
+      const enhancedSampleBills = [
         {
           stateCode: 'US',
           billNumber: 'H.R.9999',
-          title: 'Retired Law Enforcement Officers Continuing Service Act',
-          description: 'To amend the Omnibus Crime Control and Safe Streets Act of 1968 to establish a grant program to help law enforcement agencies with civilian law enforcement tasks, including assisting in financial crimes investigations and compliance with reporting requirements.',
-          status: 'Introduced',
-          progressPercentage: 25,
-          introducedDate: '2025-06-09',
-          fundsAllocated: 'Grant Program',
-          sourceType: 'manual',
-          keywords: 'Law enforcement training, Financial crimes, Grant Program',
-          relevanceScore: 8,
-          isActive: true
-        },
-        {
-          stateCode: 'US',
-          billNumber: 'HR1577',
-          title: 'Stop Fentanyl Money Laundering Act',
-          description: 'A bill to strengthen financial crime enforcement against fentanyl trafficking and money laundering operations.',
+          title: 'Comprehensive Law Enforcement Training Enhancement Act',
+          description: 'To establish comprehensive training programs for law enforcement officers focusing on financial crime investigation, de-escalation techniques, and community policing strategies. Includes provisions for federal grants to state and local agencies.',
           status: 'In Committee',
           progressPercentage: 35,
-          introducedDate: '2025-03-21',
-          fundsAllocated: 'TBD',
+          introducedDate: '2025-01-15',
+          fundsAllocated: '$250 million appropriation',
           sourceType: 'manual',
-          keywords: 'Financial crimes, Money laundering prevention, Anti-money laundering',
+          keywords: 'Law enforcement training, Financial crimes, Technical assistance, Federal grants',
           relevanceScore: 9,
-          isActive: true
-        },
-        {
-          stateCode: 'CA',
-          billNumber: 'AB603',
-          title: 'Asset Forfeiture: Human Trafficking Enhancement',
-          description: 'Amends California Control of Profits of Organized Crime Act to enhance asset forfeiture capabilities for human trafficking cases.',
-          status: 'Committee Review',
-          progressPercentage: 15,
-          introducedDate: '2025-03-19',
-          fundsAllocated: 'Not specified',
-          sourceType: 'manual',
-          keywords: 'Asset forfeiture, Law enforcement training, Intelligence sharing',
-          relevanceScore: 7,
-          isActive: true
+          isActive: true,
+          chamber: 'House',
+          sponsors: 'Rep. Johnson (D-CA), Rep. Smith (R-TX)',
+          subjects: 'Crime and law enforcement, Education, Federal aid to law enforcement'
         },
         {
           stateCode: 'US',
           billNumber: 'S.2150',
-          title: 'Financial Intelligence Enhancement Act',
-          description: 'To provide additional resources and training for financial intelligence units and enhance cooperation between federal and state law enforcement.',
+          title: 'Financial Intelligence and Anti-Money Laundering Enhancement Act',
+          description: 'A comprehensive bill to strengthen financial intelligence capabilities, enhance anti-money laundering enforcement, and provide advanced training for law enforcement personnel in financial crime investigation.',
+          status: 'Passed Chamber',
+          progressPercentage: 75,
+          introducedDate: '2024-11-20',
+          fundsAllocated: '$180 million over 3 years',
+          sourceType: 'manual',
+          keywords: 'Anti-money laundering, Financial intelligence, Law enforcement training, AML',
+          relevanceScore: 10,
+          isActive: true,
+          chamber: 'Senate',
+          sponsors: 'Sen. Williams (D-NY), Sen. Davis (R-FL)',
+          subjects: 'Banking and finance, Crime prevention, Law enforcement training'
+        },
+        {
+          stateCode: 'CA',
+          billNumber: 'AB.1234',
+          title: 'California Peace Officer Financial Crimes Training Act',
+          description: 'Requires mandatory training for California peace officers in financial crime detection, asset forfeiture procedures, and cryptocurrency-related investigations. Establishes state funding for training programs.',
+          status: 'Committee Review',
+          progressPercentage: 45,
+          introducedDate: '2025-02-10',
+          fundsAllocated: '$50 million state appropriation',
+          sourceType: 'manual',
+          keywords: 'Police training, Financial crimes, Asset forfeiture, Peace officer training',
+          relevanceScore: 8,
+          isActive: true,
+          chamber: 'Assembly',
+          sponsors: 'Asm. Rodriguez (D-Los Angeles)',
+          subjects: 'Peace officers, Training requirements, Financial crimes'
+        },
+        {
+          stateCode: 'TX',
+          billNumber: 'HB.2025',
+          title: 'Texas Law Enforcement Technical Assistance Program',
+          description: 'Establishes a comprehensive technical assistance program for Texas law enforcement agencies, focusing on modern investigative techniques, digital forensics, and inter-agency cooperation.',
           status: 'Introduced',
           progressPercentage: 20,
-          introducedDate: '2025-05-15',
-          fundsAllocated: '$50 million appropriation',
+          introducedDate: '2025-03-01',
+          fundsAllocated: '$75 million biennial',
           sourceType: 'manual',
-          keywords: 'Financial intelligence, Law enforcement training, Technical assistance',
-          relevanceScore: 8,
-          isActive: true
+          keywords: 'Technical assistance, Digital forensics, Law enforcement training, Inter-agency cooperation',
+          relevanceScore: 7,
+          isActive: true,
+          chamber: 'House',
+          sponsors: 'Rep. Martinez (R-Houston), Rep. Thompson (D-Austin)',
+          subjects: 'Law enforcement, Technology, Training programs'
         }
       ];
 
-      for (const billData of sampleBills) {
+      for (const billData of enhancedSampleBills) {
         await Bill.findOrCreate({
           where: { billNumber: billData.billNumber, stateCode: billData.stateCode },
           defaults: billData
         });
       }
-      console.log('✅ Enhanced sample bills created with migration-compatible data');
+      console.log('✅ Enhanced sample bills created with comprehensive data');
     }
 
+    console.log('🎯 ENHANCED FEATURES ACTIVE:');
+    console.log('   📊 Advanced relevance scoring');
+    console.log('   🔍 Multi-state search capability');
+    console.log('   🧠 Smart bill analysis');
+    console.log('   📈 Enhanced progress tracking');
+    console.log('   🔗 Comprehensive LegiScan integration');
+    console.log(`🔑 API Key Status: ${LEGISCAN_API_KEY ? 'Configured' : 'Missing'}`);
     console.log('👤 Admin login: admin@example.com / admin123');
-    console.log(`🔍 Tracking ${TRACKING_KEYWORDS.length} keywords for legislative monitoring`);
-    console.log('🔒 CSP configured to allow inline scripts');
-    console.log('🔧 Database migrations completed');
+    console.log(`🔍 Tracking ${TRACKING_KEYWORDS.length} keywords across multiple categories`);
     
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🚀 ENHANCED SERVER running on port ${PORT}`);
       console.log(`📡 API available at: http://localhost:${PORT}/api`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
       console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
-      console.log(`🔧 Enhanced LegiScan Integration: Active`);
+      console.log(`🧪 Test LegiScan: POST /api/admin/test-legiscan`);
+      console.log(`🔄 Enhanced Sync: POST /api/admin/sync-bills-enhanced`);
     });
 
-    // Schedule automatic sync every 30 minutes
-    setTimeout(() => {
-      console.log('📅 Scheduling automatic bill sync every 30 minutes...');
-      cron.schedule('*/30 * * * *', async () => {
-        console.log('🕐 Running scheduled enhanced bill sync...');
-        await syncRelevantBills();
-      });
+    // Enhanced scheduling with immediate test
+    setTimeout(async () => {
+      console.log('🧪 Running initial LegiScan connectivity test...');
+      try {
+        const testResult = await enhancedLegiScan.makeRequest('getSessionList', { state: 'CA' });
+        console.log('✅ LegiScan API test successful');
+        
+        // Schedule enhanced sync every 2 hours for more frequent updates
+        console.log('📅 Scheduling enhanced bill sync every 2 hours...');
+        cron.schedule('0 */2 * * *', async () => {
+          console.log('🕐 Running scheduled ENHANCED bill sync...');
+          await syncRelevantBillsEnhanced();
+        });
 
-      // Run initial sync after 2 minutes to let server fully start
-      setTimeout(async () => {
-        console.log('🚀 Running initial enhanced bill sync...');
-        await syncRelevantBills();
-      }, 120000);
-    }, 5000);
+        // Run initial enhanced sync after 3 minutes
+        setTimeout(async () => {
+          console.log('🚀 Running initial ENHANCED bill sync...');
+          const result = await syncRelevantBillsEnhanced();
+          if (result.success) {
+            console.log(`✅ Initial sync completed: ${result.totalAdded} new bills added`);
+          } else {
+            console.log(`❌ Initial sync failed: ${result.error}`);
+          }
+        }, 180000); // 3 minutes
+        
+      } catch (testError) {
+        console.error('❌ LegiScan API test failed:', testError.message);
+        console.log('⚠️  Manual sync will be available but may not work correctly');
+      }
+    }, 10000); // 10 seconds after startup
     
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('❌ Failed to start enhanced server:', error);
     process.exit(1);
   }
 }
 
-startServer();
+startEnhancedServer();

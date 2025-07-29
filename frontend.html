@@ -3,36 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiScan Law Enforcement Training Legislation Tracker</title>
+    <title>Enhanced LegiScan Law Enforcement Training Legislation Tracker</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f5f7fa;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
         .container {
             max-width: 1400px;
             margin: 0 auto;
             background: white;
             min-height: 100vh;
+            box-shadow: 0 0 30px rgba(0,0,0,0.1);
         }
         .header {
             background: linear-gradient(135deg, #2c3e50, #3498db);
             color: white;
-            padding: 20px;
+            padding: 25px;
             position: relative;
+            border-bottom: 4px solid #27ae60;
         }
         .header h1 {
-            margin: 0 0 10px 0;
-            font-size: 28px;
+            margin: 0 0 15px 0;
+            font-size: 32px;
             text-align: center;
+            font-weight: 700;
         }
         .header p {
             margin: 0;
             text-align: center;
-            opacity: 0.9;
-            font-size: 16px;
+            opacity: 0.95;
+            font-size: 18px;
+        }
+        .version-badge {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            background: rgba(46, 204, 113, 0.3);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid rgba(46, 204, 113, 0.5);
+            font-weight: 500;
         }
         .auth-controls {
             position: absolute;
@@ -67,17 +82,26 @@
         .logout-btn:hover {
             background: rgba(255,255,255,0.3);
         }
-        .sync-status {
-            background: rgba(52, 152, 219, 0.15);
-            color: #2c3e50;
-            padding: 12px 20px;
+        .enhanced-status {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 15px 20px;
             font-size: 14px;
             text-align: center;
-            border-bottom: 1px solid #ecf0f1;
+            border-bottom: 1px solid #229954;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         .controls-section {
             background: #f8f9fa;
-            padding: 20px;
+            padding: 25px;
             border-bottom: 1px solid #e9ecef;
         }
         .search-controls {
@@ -85,21 +109,21 @@
             gap: 15px;
             align-items: center;
             flex-wrap: wrap;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .search-input {
             flex: 1;
-            min-width: 250px;
-            padding: 12px 16px;
+            min-width: 300px;
+            padding: 14px 18px;
             border: 2px solid #e9ecef;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 14px;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
         .search-input:focus {
             outline: none;
             border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
         }
         .filter-controls {
             display: flex;
@@ -108,74 +132,102 @@
             flex-wrap: wrap;
         }
         .filter-select {
-            padding: 12px 16px;
+            padding: 14px 18px;
             border: 2px solid #e9ecef;
-            border-radius: 8px;
+            border-radius: 10px;
             background: white;
             font-size: 14px;
             cursor: pointer;
-            min-width: 140px;
+            min-width: 150px;
+            transition: border-color 0.2s;
         }
-        .search-btn, .sync-btn {
-            padding: 12px 24px;
+        .filter-select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .search-btn, .sync-btn, .test-btn {
+            padding: 14px 28px;
             background: #3498db;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: 500;
-            transition: background 0.2s;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .search-btn:hover, .sync-btn:hover {
+        .search-btn:hover, .sync-btn:hover, .test-btn:hover {
             background: #2980b9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
         }
         .sync-btn {
-            background: #27ae60;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
         }
         .sync-btn:hover {
-            background: #229954;
+            background: linear-gradient(135deg, #229954, #27ae60);
         }
-        .sync-btn:disabled {
+        .test-btn {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+        }
+        .test-btn:hover {
+            background: linear-gradient(135deg, #d35400, #e67e22);
+        }
+        .sync-btn:disabled, .test-btn:disabled {
             background: #95a5a6;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .stats-bar {
-            display: flex;
-            justify-content: space-around;
-            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 25px;
             background: white;
             border-bottom: 1px solid #e9ecef;
-            font-size: 14px;
         }
         .stat-item {
             text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            transition: transform 0.2s;
+        }
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .stat-number {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             color: #2c3e50;
+            margin-bottom: 8px;
         }
         .stat-label {
             color: #7f8c8d;
-            margin-top: 4px;
+            font-size: 14px;
+            font-weight: 500;
         }
         .main-content {
-            padding: 20px;
+            padding: 25px;
         }
         .loading {
             text-align: center;
-            padding: 60px;
+            padding: 80px;
             color: #7f8c8d;
         }
         .loading-spinner {
             border: 4px solid #ecf0f1;
             border-top: 4px solid #3498db;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 25px;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -183,180 +235,249 @@
         }
         .bills-grid {
             display: grid;
-            gap: 25px;
+            gap: 30px;
         }
         .bill-card {
             background: white;
             border: 1px solid #e9ecef;
-            border-radius: 12px;
-            padding: 28px;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            position: relative;
+            overflow: hidden;
+        }
+        .bill-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
         }
         .bill-card:hover {
-            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-            transform: translateY(-3px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+            transform: translateY(-4px);
         }
         .bill-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .bill-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         .bill-number {
-            background: #e3f2fd;
-            color: #1976d2;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .bill-state {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            margin-right: 12px;
         }
-        .bill-state {
-            background: #f3e5f5;
-            color: #7b1fa2;
-            padding: 4px 8px;
-            border-radius: 12px;
+        .source-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
             font-size: 11px;
-            font-weight: 500;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .source-legiscan {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+        }
+        .source-manual {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
         }
         .bill-title {
-            font-size: 20px;
-            font-weight: 600;
+            font-size: 22px;
+            font-weight: 700;
             color: #2c3e50;
-            margin: 16px 0;
+            margin: 20px 0;
             line-height: 1.4;
         }
         .bill-summary {
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #ecf0f1, #f8f9fa);
             border-left: 4px solid #3498db;
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 0 8px 8px 0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 12px 12px 0;
         }
         .bill-summary h4 {
-            margin: 0 0 8px 0;
+            margin: 0 0 12px 0;
             color: #2c3e50;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
         }
         .bill-summary p {
             margin: 0;
             color: #555;
-            font-size: 13px;
-            line-height: 1.5;
+            font-size: 14px;
+            line-height: 1.6;
         }
         .bill-description {
             color: #555;
-            line-height: 1.6;
-            margin-bottom: 16px;
-            font-size: 14px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-size: 15px;
         }
         .bill-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
             font-size: 13px;
             color: #7f8c8d;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .bill-status {
             background: #fff3cd;
             color: #856404;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 12px;
         }
         .bill-progress-container {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
         .bill-progress-label {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
-            font-size: 12px;
+            margin-bottom: 10px;
+            font-size: 13px;
             color: #7f8c8d;
         }
         .progress-percentage {
-            font-weight: 600;
+            font-weight: 700;
             color: #2c3e50;
-            font-size: 14px;
+            font-size: 16px;
         }
         .bill-progress {
             width: 100%;
-            height: 10px;
+            height: 12px;
             background: #ecf0f1;
-            border-radius: 5px;
+            border-radius: 6px;
             overflow: hidden;
         }
         .bill-progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #3498db, #2ecc71);
             transition: width 0.3s ease;
-            border-radius: 5px;
+            border-radius: 6px;
+            position: relative;
+        }
+        .bill-progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
         }
         .bill-keywords {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 16px;
+            gap: 10px;
+            margin-top: 20px;
         }
         .keyword-tag {
-            background: #e8f5e8;
-            color: #2e7d32;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 500;
-        }
-        .relevance-score {
-            background: #ffeaa7;
-            color: #e17055;
-            padding: 4px 10px;
-            border-radius: 12px;
+            background: linear-gradient(135deg, #e8f5e8, #d5f4e6);
+            color: #27ae60;
+            padding: 6px 12px;
+            border-radius: 15px;
             font-size: 11px;
             font-weight: 600;
+            border: 1px solid rgba(39, 174, 96, 0.2);
+        }
+        .relevance-score {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .relevance-high {
-            background: #d5f4e6;
-            color: #27ae60;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
         }
         .relevance-medium {
-            background: #ffeaa7;
-            color: #e17055;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
         }
         .relevance-low {
-            background: #fadbd8;
-            color: #e74c3c;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        .enhanced-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .enhanced-info h5 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .enhanced-info p {
+            margin: 5px 0;
+            font-size: 12px;
+            color: #7f8c8d;
         }
         .no-bills {
             text-align: center;
-            padding: 60px;
+            padding: 80px;
             color: #7f8c8d;
         }
         .no-bills-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
+            font-size: 64px;
+            margin-bottom: 20px;
             opacity: 0.5;
         }
         .debug-info {
             background: #f8f9fa;
-            padding: 15px;
-            margin: 20px;
-            border-radius: 8px;
-            font-family: monospace;
+            padding: 20px;
+            margin: 25px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
             font-size: 12px;
             border-left: 4px solid #3498db;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
         }
         .error-message {
             background: #f8d7da;
             color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px;
             border-left: 4px solid #dc3545;
         }
         .login-overlay {
@@ -373,32 +494,33 @@
         }
         .login-form {
             background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
         }
         .login-form h2 {
-            margin: 0 0 24px 0;
+            margin: 0 0 30px 0;
             text-align: center;
             color: #2c3e50;
-            font-size: 24px;
+            font-size: 28px;
+            font-weight: 700;
         }
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         .form-group label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
+            margin-bottom: 10px;
+            font-weight: 600;
             color: #2c3e50;
         }
         .form-group input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 18px;
             border: 2px solid #e9ecef;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 14px;
             box-sizing: border-box;
             transition: border-color 0.2s;
@@ -406,105 +528,142 @@
         .form-group input:focus {
             outline: none;
             border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
         }
         .login-btn {
             width: 100%;
-            padding: 14px;
-            background: #3498db;
+            padding: 16px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 16px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .login-btn:hover {
-            background: #2980b9;
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
         }
         .login-btn:disabled {
             background: #95a5a6;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .test-buttons {
-            margin: 20px 0;
+            margin: 25px 0;
             text-align: center;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
-        .test-btn {
-            background: #e67e22;
+        .test-btn-small {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
             color: white;
             border: none;
-            padding: 10px 20px;
-            margin: 0 8px;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 12px;
-            transition: background 0.2s;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .test-btn:hover {
-            background: #d35400;
+        .test-btn-small:hover {
+            background: linear-gradient(135deg, #d35400, #e67e22);
+            transform: translateY(-1px);
         }
         .demo-creds {
-            background: #f8f9fa;
-            padding: 16px;
-            border-radius: 8px;
-            margin-top: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 25px;
             font-size: 13px;
             color: #6c757d;
             text-align: center;
+            border: 1px solid #e9ecef;
         }
         .success-message {
-            background: #d4edda;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
             color: #155724;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             text-align: center;
             font-size: 14px;
+            border: 1px solid #c3e6cb;
         }
         .error-alert {
-            background: #f8d7da;
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
             color: #721c24;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             text-align: center;
             font-size: 14px;
+            border: 1px solid #f5c6cb;
         }
         .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 10px;
-            margin-top: 30px;
-            padding: 20px;
+            margin-top: 40px;
+            padding: 25px;
         }
         .page-btn {
-            padding: 8px 12px;
+            padding: 10px 15px;
             border: 1px solid #e9ecef;
             background: white;
             color: #495057;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
+            transition: all 0.2s;
         }
         .page-btn:hover {
             background: #f8f9fa;
+            transform: translateY(-1px);
         }
         .page-btn.active {
-            background: #3498db;
+            background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
             border-color: #3498db;
         }
         .page-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
         .sort-label {
             font-size: 13px;
             color: #6c757d;
-            margin-right: 8px;
+            margin-right: 10px;
+            font-weight: 600;
+        }
+        .api-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
@@ -512,13 +671,14 @@
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-form">
-            <h2>Legislative Tracker</h2>
+            <h2>Enhanced Legislative Tracker</h2>
             <div id="errorMessage" class="error-alert" style="display: none;"></div>
             <div id="successMessage" class="success-message" style="display: none;"></div>
             
             <div class="test-buttons">
-                <button id="testConnectionBtn" class="test-btn">Test Connection</button>
-                <button id="testAPIBtn" class="test-btn">Test API</button>
+                <button id="testConnectionBtn" class="test-btn-small">Test Connection</button>
+                <button id="testAPIBtn" class="test-btn-small">Test API</button>
+                <button id="testLegiScanBtn" class="test-btn-small">Test LegiScan</button>
             </div>
             
             <div class="form-group">
@@ -532,7 +692,8 @@
             <button id="loginBtn" class="login-btn">Sign In</button>
             
             <div class="demo-creds">
-                <strong>Demo Credentials:</strong><br>
+                <strong>Enhanced Version 3.0.0</strong><br>
+                Demo Credentials:<br>
                 Email: admin@example.com<br>
                 Password: admin123
             </div>
@@ -542,6 +703,7 @@
     <!-- Main Application -->
     <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
+            <div class="version-badge">v3.0.0 Enhanced</div>
             <div class="auth-controls">
                 <div class="user-info">
                     <span id="userDisplay"></span>
@@ -549,12 +711,21 @@
                 </div>
                 <button id="logoutBtn" class="logout-btn">Logout</button>
             </div>
-            <h1>LegiScan Law Enforcement Training Legislation Tracker</h1>
-            <p>Real-time tracking of legislation related to training for law enforcement and financial crime prevention</p>
+            <h1>Enhanced LegiScan Law Enforcement Training Legislation Tracker</h1>
+            <p>Advanced real-time tracking with multi-state search, smart relevance scoring, and comprehensive LegiScan integration</p>
         </div>
         
-        <div id="syncStatus" class="sync-status">
-            🔄 Loading system status...
+        <div id="enhancedStatus" class="enhanced-status">
+            <div class="status-item">
+                <div class="status-dot"></div>
+                <span id="statusText">🔄 Loading enhanced system status...</span>
+            </div>
+            <div class="status-item">
+                <span class="api-status">📡 LegiScan API: <span id="apiStatus">Checking...</span></span>
+            </div>
+            <div class="status-item">
+                <span id="versionInfo">🚀 Enhanced v3.0.0</span>
+            </div>
         </div>
 
         <div class="stats-bar" id="statsBar">
@@ -574,24 +745,31 @@
                 <div class="stat-number" id="relevantBillsCount">-</div>
                 <div class="stat-label">High Relevance</div>
             </div>
+            <div class="stat-item">
+                <div class="stat-number" id="keywordsCount">-</div>
+                <div class="stat-label">Keywords Tracked</div>
+            </div>
         </div>
 
         <div class="controls-section">
             <div class="search-controls">
-                <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, or keywords...">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, keywords, or subjects...">
                 <button id="searchBtn" class="search-btn">Search</button>
-                <button id="syncBtn" class="sync-btn">Sync LegiScan</button>
+                <button id="syncBtn" class="sync-btn">Enhanced Sync</button>
+                <button id="testLegiScanMainBtn" class="test-btn">Test LegiScan</button>
             </div>
             
             <div class="filter-controls">
                 <select id="stateFilter" class="filter-select">
                     <option value="all">All States</option>
                     <option value="US">Federal</option>
-                    <option value="AL">Alabama</option>
                     <option value="CA">California</option>
+                    <option value="TX">Texas</option>
                     <option value="FL">Florida</option>
                     <option value="NY">New York</option>
-                    <option value="TX">Texas</option>
+                    <option value="IL">Illinois</option>
+                    <option value="PA">Pennsylvania</option>
+                    <option value="OH">Ohio</option>
                 </select>
                 
                 <select id="statusFilter" class="filter-select">
@@ -602,12 +780,19 @@
                     <option value="enacted">Enacted</option>
                 </select>
                 
+                <select id="sourceFilter" class="filter-select">
+                    <option value="all">All Sources</option>
+                    <option value="legiscan">LegiScan Only</option>
+                    <option value="manual">Manual Only</option>
+                </select>
+                
                 <span class="sort-label">Sort by:</span>
                 <select id="sortSelect" class="filter-select">
                     <option value="relevanceScore">Relevance Score</option>
                     <option value="progressPercentage">Progress %</option>
                     <option value="introducedDate">Date Introduced</option>
                     <option value="title">Bill Title</option>
+                    <option value="lastSynced">Last Synced</option>
                     <option value="createdAt">Date Added</option>
                 </select>
                 
@@ -619,14 +804,14 @@
         </div>
 
         <div id="debugInfo" class="debug-info">
-            <strong>Debug Information:</strong><br>
-            <span id="debugText">Initializing...</span>
+            <strong>Enhanced System Debug Information:</strong><br>
+            <span id="debugText">Initializing enhanced system...</span>
         </div>
         
         <div class="main-content">
             <div id="loadingIndicator" class="loading">
                 <div class="loading-spinner"></div>
-                Loading legislative data...
+                Loading enhanced legislative data with LegiScan integration...
             </div>
             
             <div id="billsContainer" style="display: none;">
@@ -637,7 +822,7 @@
             <div id="noBillsMessage" class="no-bills" style="display: none;">
                 <div class="no-bills-icon">📋</div>
                 <h3>No Bills Found</h3>
-                <p>Try adjusting your search criteria or sync with LegiScan to get the latest data.</p>
+                <p>Try adjusting your search criteria or run an enhanced sync to get the latest data from LegiScan.</p>
             </div>
         </div>
     </div>
@@ -651,26 +836,15 @@
         let filteredBills = [];
         let currentPage = 1;
         let billsPerPage = 10;
-
-        // Keywords we're tracking
-        const TRACKING_KEYWORDS = [
-            'Financial crimes', 'Fraud investigation', 'Anti-money laundering', 'AML',
-            'Economic crimes', 'White-collar crime', 'Asset forfeiture', 'Illicit finance',
-            'Investigative accounting', 'Forensic auditing', 'Financial intelligence',
-            'Money laundering prevention', 'Financial analysis training', 'Law enforcement training',
-            'Technical assistance', 'Capacity building', 'Justice assistance grants',
-            'Training and technical assistance', 'TTA', 'Evidence-based practices',
-            'Criminal justice system improvement', 'Intelligence sharing',
-            'Multi-jurisdictional task forces', 'Cybercrime', 'Digital forensics'
-        ];
+        let enhancedMode = true;
 
         function addDebug(message) {
             const timestamp = new Date().toLocaleTimeString();
             const logMessage = `${timestamp}: ${message}`;
             debugLog.push(logMessage);
             
-            if (debugLog.length > 15) {
-                debugLog = debugLog.slice(-15);
+            if (debugLog.length > 20) {
+                debugLog = debugLog.slice(-20);
             }
             
             const debugElement = document.getElementById('debugText');
@@ -701,7 +875,7 @@
         }
 
         function showMainInterface() {
-            addDebug('Showing main interface');
+            addDebug('Showing enhanced main interface');
             const loginOverlay = document.getElementById('loginOverlay');
             const mainContainer = document.getElementById('mainContainer');
             const userDisplay = document.getElementById('userDisplay');
@@ -715,7 +889,7 @@
             
             if (adminBadge && currentUser && currentUser.role === 'admin') {
                 adminBadge.style.display = 'inline';
-                addDebug('Admin privileges enabled');
+                addDebug('Enhanced admin privileges enabled');
             }
         }
 
@@ -760,15 +934,15 @@
                 
                 const data = await response.json();
                 addDebug(`Health check data: ${JSON.stringify(data)}`);
-                showMessage(`Connection OK: ${data.status}`, false);
+                showMessage(`✅ Connection OK: ${data.status} (Enhanced ${data.version || 'v3.0.0'})`, false);
             } catch (error) {
                 addDebug(`Connection failed: ${error.message}`);
-                showMessage(`Connection Error: ${error.message}`, true);
+                showMessage(`❌ Connection Error: ${error.message}`, true);
             }
         }
 
         async function testAPICall() {
-            addDebug('Testing API endpoint...');
+            addDebug('Testing enhanced API endpoint...');
             try {
                 const response = await fetch('/api');
                 addDebug(`API response status: ${response.status}`);
@@ -778,11 +952,78 @@
                 }
                 
                 const data = await response.json();
-                addDebug(`API test data: ${JSON.stringify(data).substring(0, 100)}...`);
-                showMessage(`API OK: ${data.message}`, false);
+                addDebug(`Enhanced API test data: ${JSON.stringify(data).substring(0, 150)}...`);
+                showMessage(`✅ Enhanced API OK: ${data.message} (v${data.version})`, false);
             } catch (error) {
-                addDebug(`API test failed: ${error.message}`);
-                showMessage(`API Error: ${error.message}`, true);
+                addDebug(`Enhanced API test failed: ${error.message}`);
+                showMessage(`❌ API Error: ${error.message}`, true);
+            }
+        }
+
+        async function testLegiScanAPI() {
+            if (!authToken) {
+                showMessage('❌ Please login first to test LegiScan API', true);
+                return;
+            }
+
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('❌ Admin access required for LegiScan testing', true);
+                return;
+            }
+
+            addDebug('Testing LegiScan API connectivity...');
+            
+            try {
+                const response = await fetch('/api/admin/test-legiscan', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                addDebug(`LegiScan test response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                addDebug(`LegiScan test result: ${JSON.stringify(data)}`);
+                
+                if (data.success) {
+                    showMessage(`✅ LegiScan API Working: ${data.searchTest} (Key: ${data.apiKey})`, false);
+                    updateAPIStatus('connected');
+                } else {
+                    showMessage(`❌ LegiScan API Failed: ${data.error}`, true);
+                    updateAPIStatus('failed');
+                }
+                
+            } catch (error) {
+                addDebug(`LegiScan test failed: ${error.message}`);
+                showMessage(`❌ LegiScan Test Error: ${error.message}`, true);
+                updateAPIStatus('failed');
+            }
+        }
+
+        function updateAPIStatus(status) {
+            const apiStatusElement = document.getElementById('apiStatus');
+            if (apiStatusElement) {
+                switch(status) {
+                    case 'connected':
+                        apiStatusElement.textContent = '✅ Connected';
+                        apiStatusElement.style.color = '#27ae60';
+                        break;
+                    case 'failed':
+                        apiStatusElement.textContent = '❌ Failed';
+                        apiStatusElement.style.color = '#e74c3c';
+                        break;
+                    case 'testing':
+                        apiStatusElement.textContent = '🔄 Testing...';
+                        apiStatusElement.style.color = '#f39c12';
+                        break;
+                    default:
+                        apiStatusElement.textContent = '⚠️ Unknown';
+                        apiStatusElement.style.color = '#95a5a6';
+                }
             }
         }
 
@@ -799,7 +1040,7 @@
             const email = emailInput.value;
             const password = passwordInput.value;
             
-            addDebug(`STARTING LOGIN for: ${email}`);
+            addDebug(`ENHANCED LOGIN for: ${email}`);
 
             if (!email || !password) {
                 addDebug('Missing credentials');
@@ -811,7 +1052,7 @@
             loginBtn.textContent = 'Signing In...';
 
             try {
-                addDebug('Creating login request...');
+                addDebug('Creating enhanced login request...');
                 
                 const loginData = { email, password };
                 const requestOptions = {
@@ -823,13 +1064,13 @@
                     body: JSON.stringify(loginData)
                 };
                 
-                addDebug('Sending request to /api/auth/login...');
+                addDebug('Sending request to enhanced /api/auth/login...');
                 const response = await fetch('/api/auth/login', requestOptions);
                 
-                addDebug(`Response status: ${response.status}`);
+                addDebug(`Enhanced response status: ${response.status}`);
                 
                 const responseText = await response.text();
-                addDebug(`Raw response length: ${responseText.length} chars`);
+                addDebug(`Enhanced response length: ${responseText.length} chars`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${responseText}`);
@@ -838,7 +1079,7 @@
                 let data;
                 try {
                     data = JSON.parse(responseText);
-                    addDebug('Response parsed successfully as JSON');
+                    addDebug('Enhanced response parsed successfully as JSON');
                 } catch (parseError) {
                     addDebug(`JSON parse error: ${parseError.message}`);
                     throw new Error('Server returned invalid JSON');
@@ -854,16 +1095,16 @@
                     
                     currentUser = data.user;
                     authToken = data.accessToken;
-                    addDebug('Login successful, showing main interface');
+                    addDebug('Enhanced login successful, showing main interface');
                     showMainInterface();
-                    loadDashboard();
+                    loadEnhancedDashboard();
                 } else {
-                    addDebug('No token in response');
+                    addDebug('No token in enhanced response');
                     showMessage(data.error || 'Login failed - no token received', true);
                 }
 
             } catch (error) {
-                addDebug(`LOGIN ERROR: ${error.message}`);
+                addDebug(`ENHANCED LOGIN ERROR: ${error.message}`);
                 showMessage(`Login failed: ${error.message}`, true);
             } finally {
                 loginBtn.disabled = false;
@@ -872,24 +1113,24 @@
         }
 
         function logout() {
-            addDebug('Logging out');
+            addDebug('Logging out from enhanced system');
             clearAuthData();
             showLogin();
         }
 
-        async function loadDashboard() {
-            addDebug('Loading dashboard...');
+        async function loadEnhancedDashboard() {
+            addDebug('Loading enhanced dashboard...');
             await Promise.all([
-                loadBills(),
-                loadSyncStatus()
+                loadEnhancedBills(),
+                loadEnhancedSyncStatus()
             ]);
         }
 
-        async function loadBills() {
-            addDebug('Loading bills...');
+        async function loadEnhancedBills() {
+            addDebug('Loading enhanced bills with LegiScan integration...');
             
             if (!authToken) {
-                addDebug('No auth token - cannot load bills');
+                addDebug('No auth token - cannot load enhanced bills');
                 showMessage('Authentication required', true);
                 return;
             }
@@ -905,18 +1146,20 @@
             try {
                 const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
                 const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
+                const source = document.getElementById('sourceFilter')?.value || 'all';
                 
                 const searchParams = new URLSearchParams({
                     limit: '50',
                     sortBy: sortBy,
-                    sortOrder: sortOrder
+                    sortOrder: sortOrder,
+                    source: source
                 });
 
                 const response = await fetch(`/api/bills?${searchParams}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 
-                addDebug(`Bills response status: ${response.status}`);
+                addDebug(`Enhanced bills response status: ${response.status}`);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -924,18 +1167,19 @@
                 }
                 
                 const data = await response.json();
-                addDebug(`Bills data received: ${data.bills ? data.bills.length : 0} bills`);
+                addDebug(`Enhanced bills data received: ${data.bills ? data.bills.length : 0} bills`);
+                addDebug(`Enhanced features: ${data.enhanced ? 'Active' : 'Not available'}`);
                 
                 allBills = data.bills || [];
-                updateStats(data.stats || {});
-                filterAndDisplayBills();
+                updateEnhancedStats(data.stats || {});
+                filterAndDisplayEnhancedBills();
 
             } catch (error) {
-                addDebug(`Error loading bills: ${error.message}`);
+                addDebug(`Error loading enhanced bills: ${error.message}`);
                 if (loadingIndicator) {
                     loadingIndicator.innerHTML = `
                         <div style="color: #e74c3c; text-align: center;">
-                            <h3>Error Loading Bills</h3>
+                            <h3>Error Loading Enhanced Bills</h3>
                             <p>${error.message}</p>
                             <button id="retryBillsBtn" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;">Try Again</button>
                         </div>
@@ -943,48 +1187,55 @@
                     
                     const retryBtn = document.getElementById('retryBillsBtn');
                     if (retryBtn) {
-                        retryBtn.addEventListener('click', loadBills);
+                        retryBtn.addEventListener('click', loadEnhancedBills);
                     }
                 }
             }
         }
 
-        function updateStats(stats) {
+        function updateEnhancedStats(stats) {
             const totalBillsCount = document.getElementById('totalBillsCount');
             const legiscanBillsCount = document.getElementById('legiscanBillsCount');
             const manualBillsCount = document.getElementById('manualBillsCount');
             const relevantBillsCount = document.getElementById('relevantBillsCount');
+            const keywordsCount = document.getElementById('keywordsCount');
             
             if (totalBillsCount) totalBillsCount.textContent = stats.totalBills || allBills.length || 0;
             if (legiscanBillsCount) legiscanBillsCount.textContent = stats.legiscanBills || 0;
             if (manualBillsCount) manualBillsCount.textContent = stats.manualBills || 0;
             if (relevantBillsCount) {
-                const highRelevance = allBills.filter(bill => (bill.relevanceScore || 0) >= 5).length;
+                const highRelevance = stats.highRelevanceBills || allBills.filter(bill => (bill.relevanceScore || 0) >= 5).length;
                 relevantBillsCount.textContent = highRelevance;
             }
+            if (keywordsCount) keywordsCount.textContent = '40+'; // Based on enhanced keywords
         }
 
-        function filterAndDisplayBills() {
+        function filterAndDisplayEnhancedBills() {
             const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
             const stateFilter = document.getElementById('stateFilter')?.value || 'all';
             const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+            const sourceFilter = document.getElementById('sourceFilter')?.value || 'all';
             
             filteredBills = allBills.filter(bill => {
                 const matchesSearch = !searchTerm || 
                     (bill.title && bill.title.toLowerCase().includes(searchTerm)) ||
                     (bill.description && bill.description.toLowerCase().includes(searchTerm)) ||
                     (bill.keywords && bill.keywords.toLowerCase().includes(searchTerm)) ||
-                    (bill.billNumber && bill.billNumber.toLowerCase().includes(searchTerm));
+                    (bill.subjects && bill.subjects.toLowerCase().includes(searchTerm)) ||
+                    (bill.billNumber && bill.billNumber.toLowerCase().includes(searchTerm)) ||
+                    (bill.sponsors && bill.sponsors.toLowerCase().includes(searchTerm));
                 
                 const matchesState = stateFilter === 'all' || bill.stateCode === stateFilter;
                 
                 const matchesStatus = statusFilter === 'all' || 
                     (bill.status && bill.status.toLowerCase().includes(statusFilter));
                 
-                return matchesSearch && matchesState && matchesStatus;
+                const matchesSource = sourceFilter === 'all' || bill.sourceType === sourceFilter;
+                
+                return matchesSearch && matchesState && matchesStatus && matchesSource;
             });
             
-            // Apply sorting
+            // Enhanced sorting
             const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
             const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
             
@@ -992,7 +1243,6 @@
                 let aVal = a[sortBy] || 0;
                 let bVal = b[sortBy] || 0;
                 
-                // Handle string sorting
                 if (typeof aVal === 'string') {
                     aVal = aVal.toLowerCase();
                     bVal = (bVal || '').toLowerCase();
@@ -1006,43 +1256,52 @@
             });
             
             currentPage = 1;
-            displayBills();
+            displayEnhancedBills();
         }
 
-        function generateBillSummary(bill) {
+        function generateEnhancedBillSummary(bill) {
             const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
             const relevanceScore = bill.relevanceScore || 0;
+            const hasTraining = bill.keywords && (bill.keywords.toLowerCase().includes('training') || bill.keywords.toLowerCase().includes('education'));
+            const hasFunding = bill.fundsAllocated && bill.fundsAllocated !== 'Not specified';
+            const hasLawEnforcement = bill.keywords && bill.keywords.toLowerCase().includes('law enforcement');
             
             let relevanceText = '';
             let summaryText = '';
             
-            // Determine relevance level
-            if (relevanceScore >= 7) {
+            if (relevanceScore >= 8) {
                 relevanceText = 'Very High Relevance';
-            } else if (relevanceScore >= 5) {
+            } else if (relevanceScore >= 6) {
                 relevanceText = 'High Relevance';
-            } else if (relevanceScore >= 3) {
+            } else if (relevanceScore >= 4) {
                 relevanceText = 'Medium Relevance';
             } else {
                 relevanceText = 'Low Relevance';
             }
             
-            // Generate summary based on bill content
             if (keywords.length > 0) {
-                const keywordText = keywords.slice(0, 3).join(', ');
-                summaryText = `This bill addresses ${keywordText.toLowerCase()} and is ${relevanceText.toLowerCase()} to law enforcement training and financial crime prevention initiatives.`;
+                const keywordText = keywords.slice(0, 4).join(', ');
+                summaryText = `This ${bill.sourceType === 'legiscan' ? 'LegiScan-sourced' : 'manually added'} bill addresses ${keywordText.toLowerCase()} and has ${relevanceText.toLowerCase()} to law enforcement training and financial crime prevention initiatives.`;
                 
-                if (bill.fundsAllocated && bill.fundsAllocated !== 'Not specified') {
-                    summaryText += ` Funding: ${bill.fundsAllocated}.`;
+                if (hasFunding) {
+                    summaryText += ` Funding details: ${bill.fundsAllocated}.`;
                 }
                 
-                if (bill.progressPercentage > 50) {
-                    summaryText += ' This bill has made significant legislative progress.';
+                if (hasTraining && hasLawEnforcement) {
+                    summaryText += ' This bill specifically targets law enforcement training enhancement.';
+                } else if (hasTraining) {
+                    summaryText += ' This bill includes training and educational components.';
+                }
+                
+                if (bill.progressPercentage > 70) {
+                    summaryText += ' This bill has made significant legislative progress and may be enacted soon.';
+                } else if (bill.progressPercentage > 30) {
+                    summaryText += ' This bill is actively progressing through the legislative process.';
                 } else if (bill.progressPercentage > 0) {
                     summaryText += ' This bill is in early legislative stages.';
                 }
             } else {
-                summaryText = `This bill is ${relevanceText.toLowerCase()} to our tracking criteria and may contain provisions related to law enforcement training or financial crime prevention.`;
+                summaryText = `This ${bill.sourceType === 'legiscan' ? 'LegiScan-tracked' : 'manually added'} bill has ${relevanceText.toLowerCase()} to our monitoring criteria and may contain provisions related to law enforcement training or financial crime prevention.`;
             }
             
             return {
@@ -1051,7 +1310,7 @@
             };
         }
 
-        function displayBills() {
+        function displayEnhancedBills() {
             const loadingIndicator = document.getElementById('loadingIndicator');
             const billsContainer = document.getElementById('billsContainer');
             const noBillsMessage = document.getElementById('noBillsMessage');
@@ -1080,39 +1339,69 @@
                     billCard.className = 'bill-card';
                     
                     const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
-                    const keywordTags = keywords.slice(0, 4).map(keyword => 
+                    const keywordTags = keywords.slice(0, 5).map(keyword => 
                         `<span class="keyword-tag">${keyword}</span>`
                     ).join('');
                     
                     const relevanceScore = bill.relevanceScore || 0;
                     let relevanceClass = 'relevance-low';
-                    if (relevanceScore >= 7) relevanceClass = 'relevance-high';
-                    else if (relevanceScore >= 4) relevanceClass = 'relevance-medium';
+                    let relevanceText = 'Low';
+                    if (relevanceScore >= 8) {
+                        relevanceClass = 'relevance-high';
+                        relevanceText = 'Very High';
+                    } else if (relevanceScore >= 6) {
+                        relevanceClass = 'relevance-high';
+                        relevanceText = 'High';
+                    } else if (relevanceScore >= 4) {
+                        relevanceClass = 'relevance-medium';
+                        relevanceText = 'Medium';
+                    }
                     
-                    const relevanceTag = `<span class="relevance-score ${relevanceClass}">Relevance: ${relevanceScore}</span>`;
+                    const relevanceTag = `<span class="relevance-score ${relevanceClass}">${relevanceText}: ${relevanceScore}/10</span>`;
                     
                     const progressPercentage = bill.progressPercentage || 0;
                     
-                    // Generate bill summary
-                    const summary = generateBillSummary(bill);
+                    // Generate enhanced bill summary
+                    const summary = generateEnhancedBillSummary(bill);
+                    
+                    // Enhanced metadata
+                    const introducedDate = bill.introducedDate ? new Date(bill.introducedDate).toLocaleDateString() : 'Unknown';
+                    const lastSynced = bill.lastSynced ? new Date(bill.lastSynced).toLocaleDateString() : 'Never';
+                    const chamber = bill.chamber || 'Unknown';
+                    const sponsors = bill.sponsors || 'Not specified';
                     
                     billCard.innerHTML = `
                         <div class="bill-header">
-                            <div>
+                            <div class="bill-badges">
                                 <span class="bill-number">${bill.billNumber || 'Unknown'}</span>
                                 <span class="bill-state">${bill.stateCode || 'Unknown'}</span>
+                                <span class="source-badge source-${bill.sourceType || 'manual'}">${bill.sourceType || 'manual'}</span>
                             </div>
                         </div>
                         <h3 class="bill-title">${bill.title || 'No title available'}</h3>
                         
                         <div class="bill-summary">
-                            <h4>Summary & Relevance</h4>
+                            <h4>Enhanced Summary & Relevance Analysis</h4>
                             <p>${summary.summary}</p>
                         </div>
                         
                         <div class="bill-meta">
-                            <span class="bill-status">${bill.status || 'Unknown'}</span>
-                            <span>Source: ${bill.sourceType || 'Unknown'}</span>
+                            <div class="meta-item">
+                                <span>📊 Status:</span>
+                                <span class="bill-status">${bill.status || 'Unknown'}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>🏛️  Chamber:</span>
+                                <span>${chamber}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>📅 Introduced:</span>
+                                <span>${introducedDate}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>🔄 Last Synced:</span>
+                                <span>${lastSynced}</span>
+                            </div>
                         </div>
                         
                         <div class="bill-progress-container">
@@ -1125,11 +1414,19 @@
                             </div>
                         </div>
                         
-                        <p class="bill-description">${(bill.description || 'No description available').substring(0, 200)}${bill.description && bill.description.length > 200 ? '...' : ''}</p>
+                        <p class="bill-description">${(bill.description || 'No description available').substring(0, 250)}${bill.description && bill.description.length > 250 ? '...' : ''}</p>
                         
                         <div class="bill-keywords">
                             ${keywordTags}
                             ${relevanceTag}
+                        </div>
+                        
+                        <div class="enhanced-info">
+                            <h5>Enhanced Information</h5>
+                            <p><strong>Funding:</strong> ${bill.fundsAllocated || 'Not specified'}</p>
+                            <p><strong>Sponsors:</strong> ${sponsors.substring(0, 100)}${sponsors.length > 100 ? '...' : ''}</p>
+                            ${bill.subjects ? `<p><strong>Subjects:</strong> ${bill.subjects.substring(0, 100)}${bill.subjects.length > 100 ? '...' : ''}</p>` : ''}
+                            ${bill.legiscanUrl ? `<p><strong>LegiScan URL:</strong> <a href="${bill.legiscanUrl}" target="_blank" style="color: #3498db;">View on LegiScan</a></p>` : ''}
                         </div>
                     `;
                     
@@ -1138,7 +1435,7 @@
             }
             
             updatePagination();
-            addDebug(`Displayed ${billsToShow.length} bills (page ${currentPage})`);
+            addDebug(`Displayed ${billsToShow.length} enhanced bills (page ${currentPage})`);
         }
 
         function updatePagination() {
@@ -1163,7 +1460,7 @@
             prevBtn.addEventListener('click', () => {
                 if (currentPage > 1) {
                     currentPage--;
-                    displayBills();
+                    displayEnhancedBills();
                 }
             });
             pagination.appendChild(prevBtn);
@@ -1176,7 +1473,7 @@
                     pageBtn.textContent = i;
                     pageBtn.addEventListener('click', () => {
                         currentPage = i;
-                        displayBills();
+                        displayEnhancedBills();
                     });
                     pagination.appendChild(pageBtn);
                 } else if (i === currentPage - 3 || i === currentPage + 3) {
@@ -1195,61 +1492,67 @@
             nextBtn.addEventListener('click', () => {
                 if (currentPage < totalPages) {
                     currentPage++;
-                    displayBills();
+                    displayEnhancedBills();
                 }
             });
             pagination.appendChild(nextBtn);
         }
 
-        async function loadSyncStatus() {
-            addDebug('Loading sync status...');
-            const syncStatus = document.getElementById('syncStatus');
+        async function loadEnhancedSyncStatus() {
+            addDebug('Loading enhanced sync status...');
+            const statusText = document.getElementById('statusText');
             
             if (!currentUser || currentUser.role !== 'admin') {
-                if (syncStatus) {
-                    syncStatus.innerHTML = '📊 Bills loaded from database • Ready to search and filter';
+                if (statusText) {
+                    statusText.innerHTML = '📊 Enhanced bills loaded from database • Ready to search and filter';
                 }
+                updateAPIStatus('unknown');
                 return;
             }
             
             try {
-                const response = await fetch('/api/admin/sync-status', {
+                const response = await fetch('/api/admin/sync-status-enhanced', {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 
                 const data = await response.json();
-                addDebug(`Sync status loaded: ${data.totalBills} total bills`);
+                addDebug(`Enhanced sync status loaded: ${data.totalBills} total bills`);
                 
-                if (syncStatus) {
+                if (statusText) {
                     const lastSync = data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
-                    const isRunning = data.currentlyRunning ? ' • 🔄 Sync in progress' : '';
+                    const isRunning = data.currentlyRunning ? ' • 🔄 Enhanced sync in progress' : '';
+                    const apiKeyStatus = data.apiKey === 'configured' ? '✅' : '❌';
                     
-                    syncStatus.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
+                    statusText.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • ⭐ High Relevance: ${data.highRelevanceBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
                 }
+                
+                updateAPIStatus(data.apiKey === 'configured' ? 'connected' : 'failed');
+                
             } catch (error) {
-                addDebug(`Error loading sync status: ${error.message}`);
-                if (syncStatus) {
-                    syncStatus.innerHTML = '⚠️ Sync status unavailable • System operational';
+                addDebug(`Error loading enhanced sync status: ${error.message}`);
+                if (statusText) {
+                    statusText.innerHTML = '⚠️ Enhanced sync status unavailable • System operational';
                 }
+                updateAPIStatus('failed');
             }
         }
 
-        async function syncLegiScan() {
+        async function syncEnhancedLegiScan() {
             if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for manual sync', true);
+                showMessage('Admin access required for enhanced sync', true);
                 return;
             }
             
             const syncBtn = document.getElementById('syncBtn');
             if (!syncBtn) return;
             
-            addDebug('Starting manual LegiScan sync...');
+            addDebug('Starting enhanced LegiScan sync...');
             
             syncBtn.disabled = true;
-            syncBtn.textContent = 'Syncing...';
+            syncBtn.textContent = 'Enhanced Syncing...';
             
             try {
-                const response = await fetch('/api/admin/sync-bills', {
+                const response = await fetch('/api/admin/sync-bills-enhanced', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
@@ -1260,28 +1563,34 @@
                 }
                 
                 const data = await response.json();
-                addDebug(`Sync initiated: ${data.message}`);
-                showMessage('LegiScan sync started in background. New bills will appear within a few minutes.', false);
+                addDebug(`Enhanced sync initiated: ${data.message}`);
+                showMessage('🚀 Enhanced LegiScan sync started! Multi-state search with advanced analysis running in background. New bills will appear within 5-10 minutes.', false);
                 
-                // Refresh the page after a short delay
+                // Update status to show sync is running
+                const statusText = document.getElementById('statusText');
+                if (statusText) {
+                    statusText.innerHTML = '🔄 Enhanced LegiScan sync in progress • Multi-state search active • Advanced relevance analysis running';
+                }
+                
+                // Refresh the page after a delay
                 setTimeout(() => {
-                    loadDashboard();
-                }, 10000);
+                    loadEnhancedDashboard();
+                }, 15000);
                 
             } catch (error) {
-                addDebug(`Sync error: ${error.message}`);
-                showMessage(`Sync failed: ${error.message}`, true);
+                addDebug(`Enhanced sync error: ${error.message}`);
+                showMessage(`Enhanced sync failed: ${error.message}`, true);
             } finally {
                 setTimeout(() => {
                     syncBtn.disabled = false;
-                    syncBtn.textContent = 'Sync LegiScan';
-                }, 5000);
+                    syncBtn.textContent = 'Enhanced Sync';
+                }, 10000);
             }
         }
 
-        // Initialize app when DOM is loaded
+        // Initialize enhanced app when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            addDebug('DOM loaded, setting up enhanced app...');
+            addDebug('DOM loaded, setting up ENHANCED app...');
             
             clearAuthData();
             showLogin();
@@ -1289,6 +1598,8 @@
             // Set up event listeners
             const testConnectionBtn = document.getElementById('testConnectionBtn');
             const testAPIBtn = document.getElementById('testAPIBtn');
+            const testLegiScanBtn = document.getElementById('testLegiScanBtn');
+            const testLegiScanMainBtn = document.getElementById('testLegiScanMainBtn');
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             const passwordInput = document.getElementById('password');
@@ -1297,27 +1608,38 @@
             const searchInput = document.getElementById('searchInput');
             const stateFilter = document.getElementById('stateFilter');
             const statusFilter = document.getElementById('statusFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
             const sortSelect = document.getElementById('sortSelect');
             const sortOrderSelect = document.getElementById('sortOrderSelect');
             
             if (testConnectionBtn) {
                 testConnectionBtn.addEventListener('click', testConnection);
-                addDebug('Test Connection button listener added');
+                addDebug('Enhanced test connection button listener added');
             }
             
             if (testAPIBtn) {
                 testAPIBtn.addEventListener('click', testAPICall);
-                addDebug('Test API button listener added');
+                addDebug('Enhanced test API button listener added');
+            }
+            
+            if (testLegiScanBtn) {
+                testLegiScanBtn.addEventListener('click', testLegiScanAPI);
+                addDebug('LegiScan test button listener added');
+            }
+            
+            if (testLegiScanMainBtn) {
+                testLegiScanMainBtn.addEventListener('click', testLegiScanAPI);
+                addDebug('Main LegiScan test button listener added');
             }
             
             if (loginBtn) {
                 loginBtn.addEventListener('click', performLogin);
-                addDebug('Login button listener added');
+                addDebug('Enhanced login button listener added');
             }
             
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', logout);
-                addDebug('Logout button listener added');
+                addDebug('Enhanced logout button listener added');
             }
             
             if (passwordInput) {
@@ -1326,58 +1648,63 @@
                         performLogin();
                     }
                 });
-                addDebug('Password enter key listener added');
+                addDebug('Enhanced password enter key listener added');
             }
             
             if (searchBtn) {
-                searchBtn.addEventListener('click', filterAndDisplayBills);
-                addDebug('Search button listener added');
+                searchBtn.addEventListener('click', filterAndDisplayEnhancedBills);
+                addDebug('Enhanced search button listener added');
             }
             
             if (syncBtn) {
-                syncBtn.addEventListener('click', syncLegiScan);
-                addDebug('Sync button listener added');
+                syncBtn.addEventListener('click', syncEnhancedLegiScan);
+                addDebug('Enhanced sync button listener added');
             }
             
             if (searchInput) {
                 searchInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
-                        filterAndDisplayBills();
+                        filterAndDisplayEnhancedBills();
                     }
                 });
                 searchInput.addEventListener('input', function() {
-                    // Debounced search
+                    // Debounced enhanced search
                     clearTimeout(this.searchTimeout);
-                    this.searchTimeout = setTimeout(filterAndDisplayBills, 500);
+                    this.searchTimeout = setTimeout(filterAndDisplayEnhancedBills, 500);
                 });
-                addDebug('Search input listeners added');
+                addDebug('Enhanced search input listeners added');
             }
             
             if (stateFilter) {
-                stateFilter.addEventListener('change', filterAndDisplayBills);
-                addDebug('State filter listener added');
+                stateFilter.addEventListener('change', filterAndDisplayEnhancedBills);
+                addDebug('Enhanced state filter listener added');
             }
             
             if (statusFilter) {
-                statusFilter.addEventListener('change', filterAndDisplayBills);
-                addDebug('Status filter listener added');
+                statusFilter.addEventListener('change', filterAndDisplayEnhancedBills);
+                addDebug('Enhanced status filter listener added');
+            }
+            
+            if (sourceFilter) {
+                sourceFilter.addEventListener('change', filterAndDisplayEnhancedBills);
+                addDebug('Enhanced source filter listener added');
             }
             
             if (sortSelect) {
-                sortSelect.addEventListener('change', loadBills);
-                addDebug('Sort select listener added');
+                sortSelect.addEventListener('change', loadEnhancedBills);
+                addDebug('Enhanced sort select listener added');
             }
             
             if (sortOrderSelect) {
-                sortOrderSelect.addEventListener('change', loadBills);
-                addDebug('Sort order select listener added');
+                sortOrderSelect.addEventListener('change', loadEnhancedBills);
+                addDebug('Enhanced sort order select listener added');
             }
             
-            addDebug('All enhanced event listeners set up');
+            addDebug('All ENHANCED event listeners set up successfully');
             
             // Test connection automatically
             setTimeout(() => {
-                addDebug('Running automatic connection test...');
+                addDebug('Running automatic enhanced connection test...');
                 testConnection();
             }, 1000);
         });
