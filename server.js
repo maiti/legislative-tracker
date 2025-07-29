@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -150,7 +151,8 @@ const authenticateToken = async (req, res, next) => {
 };
 
 // Routes
-app.get('/', (req, res) => {
+// API info route - only for /api requests
+app.get('/api', (req, res) => {
   res.json({ 
     message: 'Legislative Tracker API', 
     status: 'OK',
@@ -367,6 +369,66 @@ app.post('/api/admin/users/:id/approve', authenticateToken, async (req, res) => 
 });
 
 // Start server
+// Simple HTML interface
+app.get('/dashboard', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Legislative Tracker</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .container { max-width: 800px; margin: 0 auto; }
+            .form { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 8px; }
+            input, button { padding: 10px; margin: 5px; }
+            button { background: #007cba; color: white; border: none; cursor: pointer; }
+            .result { background: #e8f5e8; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Legislative Tracker API</h1>
+            <p>Your API is running at: <strong>${req.protocol}://${req.get('host')}</strong></p>
+            
+            <div class="form">
+                <h3>Admin Login</h3>
+                <p>Email: admin@example.com</p>
+                <p>Password: admin123</p>
+            </div>
+            
+            <div class="form">
+                <h3>Available API Endpoints:</h3>
+                <ul>
+                    <li>GET /health - Health check</li>
+                    <li>POST /api/auth/register - Register new user</li>
+                    <li>POST /api/auth/login - Login</li>
+                    <li>GET /api/bills - Get bills (requires auth)</li>
+                    <li>GET /api/admin/users/pending - Get pending users (admin only)</li>
+                </ul>
+            </div>
+        </div>
+    </body>
+    </html>
+  `);
+});
+
+// ... your admin routes end here ...
+
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'frontend/build')));
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
+});
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'frontend/build')));
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
+});
+// Start server
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
@@ -437,5 +499,7 @@ async function startServer() {
     process.exit(1);
   }
 }
+  // ... rest of your startServer function
+
 
 startServer();
