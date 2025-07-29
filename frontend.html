@@ -173,7 +173,7 @@
             font-family: monospace;
             font-size: 12px;
             border-left: 4px solid #3498db;
-            max-height: 150px;
+            max-height: 200px;
             overflow-y: auto;
         }
         .bill-item {
@@ -209,6 +209,15 @@
         .test-btn:hover {
             background: #d35400;
         }
+        .success-message {
+            background: #27ae60;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -217,11 +226,12 @@
         <div class="login-form">
             <h2>Legislative Tracker Login</h2>
             <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <div id="successMessage" class="success-message" style="display: none;"></div>
             
             <!-- Test Buttons -->
             <div class="test-buttons">
-                <button class="test-btn" onclick="testConnection()">Test Connection</button>
-                <button class="test-btn" onclick="testAPICall()">Test API</button>
+                <button id="testConnectionBtn" class="test-btn">Test Connection</button>
+                <button id="testAPIBtn" class="test-btn">Test API</button>
             </div>
             
             <div class="form-group">
@@ -232,7 +242,7 @@
                 <label for="password">Password:</label>
                 <input type="password" id="password" placeholder="Enter your password" value="admin123">
             </div>
-            <button id="loginBtn" class="login-btn" onclick="performLogin()">Sign In</button>
+            <button id="loginBtn" class="login-btn">Sign In</button>
             <div class="demo-creds">
                 <strong>Demo Credentials:</strong><br>
                 Email: admin@example.com<br>
@@ -248,7 +258,7 @@
                     <span id="userDisplay"></span>
                     <span id="adminBadge" class="admin-badge" style="display: none;">Admin</span>
                 </div>
-                <button id="logoutBtn" class="logout-btn" onclick="logout()">Logout</button>
+                <button id="logoutBtn" class="logout-btn">Logout</button>
             </div>
             <h1>LegiScan Law Enforcement Training Legislation Tracker</h1>
             <p>Real-time tracking of legislation related to training for law enforcement and financial crime prevention</p>
@@ -287,46 +297,85 @@
             const logMessage = `${timestamp}: ${message}`;
             debugLog.push(logMessage);
             
-            // Keep only last 10 messages
-            if (debugLog.length > 10) {
-                debugLog = debugLog.slice(-10);
+            // Keep only last 15 messages
+            if (debugLog.length > 15) {
+                debugLog = debugLog.slice(-15);
             }
             
-            document.getElementById('debugText').innerHTML = debugLog.join('<br>');
+            const debugElement = document.getElementById('debugText');
+            if (debugElement) {
+                debugElement.innerHTML = debugLog.join('<br>');
+            }
             console.log('DEBUG:', logMessage);
         }
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            addDebug('App initializing...');
-            clearAuthData();
-            showLogin();
-        });
-
         function clearAuthData() {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('user');
+            try {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('user');
+            } catch (e) {
+                addDebug('LocalStorage not available');
+            }
             currentUser = null;
             authToken = null;
             addDebug('Auth data cleared');
         }
 
         function showLogin() {
-            document.getElementById('loginOverlay').style.display = 'flex';
-            document.getElementById('mainContainer').style.display = 'none';
+            const loginOverlay = document.getElementById('loginOverlay');
+            const mainContainer = document.getElementById('mainContainer');
+            if (loginOverlay) loginOverlay.style.display = 'flex';
+            if (mainContainer) mainContainer.style.display = 'none';
             addDebug('Login screen shown');
         }
 
         function showMainInterface() {
             addDebug('Showing main interface');
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('mainContainer').style.display = 'block';
-            document.getElementById('userDisplay').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+            const loginOverlay = document.getElementById('loginOverlay');
+            const mainContainer = document.getElementById('mainContainer');
+            const userDisplay = document.getElementById('userDisplay');
+            const adminBadge = document.getElementById('adminBadge');
             
-            if (currentUser.role === 'admin') {
-                document.getElementById('adminBadge').style.display = 'inline';
+            if (loginOverlay) loginOverlay.style.display = 'none';
+            if (mainContainer) mainContainer.style.display = 'block';
+            if (userDisplay && currentUser) {
+                userDisplay.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+            }
+            
+            if (adminBadge && currentUser && currentUser.role === 'admin') {
+                adminBadge.style.display = 'inline';
                 addDebug('Admin privileges enabled');
             }
+        }
+
+        function showMessage(message, isError = true) {
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            
+            if (isError) {
+                if (errorDiv) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                }
+                if (successDiv) {
+                    successDiv.style.display = 'none';
+                }
+            } else {
+                if (successDiv) {
+                    successDiv.textContent = message;
+                    successDiv.style.display = 'block';
+                }
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
+                
+                // Auto-hide success message
+                setTimeout(() => {
+                    if (successDiv) successDiv.style.display = 'none';
+                }, 5000);
+            }
+            
+            addDebug(`Message shown (${isError ? 'error' : 'success'}): ${message}`);
         }
 
         // Test functions
@@ -334,12 +383,18 @@
             addDebug('Testing basic connection...');
             try {
                 const response = await fetch('/health');
+                addDebug(`Health response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
-                addDebug(`Health check: ${data.status} - ${response.status}`);
-                showError(`Connection OK: ${data.status}`, 'green');
+                addDebug(`Health check data: ${JSON.stringify(data)}`);
+                showMessage(`Connection OK: ${data.status}`, false);
             } catch (error) {
                 addDebug(`Connection failed: ${error.message}`);
-                showError(`Connection Error: ${error.message}`, 'red');
+                showMessage(`Connection Error: ${error.message}`, true);
             }
         }
 
@@ -347,25 +402,39 @@
             addDebug('Testing API endpoint...');
             try {
                 const response = await fetch('/api');
+                addDebug(`API response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
-                addDebug(`API test: ${data.status} - ${response.status}`);
-                showError(`API OK: ${data.message}`, 'green');
+                addDebug(`API test data: ${JSON.stringify(data).substring(0, 100)}...`);
+                showMessage(`API OK: ${data.message}`, false);
             } catch (error) {
                 addDebug(`API test failed: ${error.message}`);
-                showError(`API Error: ${error.message}`, 'red');
+                showMessage(`API Error: ${error.message}`, true);
             }
         }
 
         async function performLogin() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
+            
+            if (!emailInput || !passwordInput || !loginBtn) {
+                addDebug('Login form elements not found');
+                return;
+            }
+            
+            const email = emailInput.value;
+            const password = passwordInput.value;
             
             addDebug(`STARTING LOGIN for: ${email}`);
 
             if (!email || !password) {
                 addDebug('Missing credentials');
-                showError('Please enter both email and password');
+                showMessage('Please enter both email and password', true);
                 return;
             }
 
@@ -376,7 +445,7 @@
                 addDebug('Creating login request...');
                 
                 const loginData = { email, password };
-                addDebug(`Login data: ${JSON.stringify(loginData)}`);
+                addDebug(`Login data prepared`);
 
                 const requestOptions = {
                     method: 'POST',
@@ -387,27 +456,37 @@
                     body: JSON.stringify(loginData)
                 };
                 
-                addDebug(`Request options: ${JSON.stringify(requestOptions, null, 2)}`);
-
                 addDebug('Sending request to /api/auth/login...');
                 const response = await fetch('/api/auth/login', requestOptions);
                 
                 addDebug(`Response status: ${response.status}`);
-                addDebug(`Response headers: ${JSON.stringify([...response.headers.entries()])}`);
+                addDebug(`Response content-type: ${response.headers.get('content-type')}`);
                 
                 const responseText = await response.text();
-                addDebug(`Raw response: ${responseText.substring(0, 200)}...`);
+                addDebug(`Raw response length: ${responseText.length} chars`);
+                addDebug(`Response preview: ${responseText.substring(0, 200)}...`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${responseText}`);
                 }
 
-                const data = JSON.parse(responseText);
-                addDebug(`Parsed response: ${JSON.stringify(data).substring(0, 100)}...`);
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    addDebug('Response parsed successfully as JSON');
+                } catch (parseError) {
+                    addDebug(`JSON parse error: ${parseError.message}`);
+                    throw new Error('Server returned invalid JSON');
+                }
 
                 if (data.accessToken) {
-                    localStorage.setItem('accessToken', data.accessToken);
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    try {
+                        localStorage.setItem('accessToken', data.accessToken);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    } catch (e) {
+                        addDebug('Cannot save to localStorage, continuing anyway');
+                    }
+                    
                     currentUser = data.user;
                     authToken = data.accessToken;
                     addDebug('Login successful, showing main interface');
@@ -416,12 +495,12 @@
                     loadSyncStatus();
                 } else {
                     addDebug('No token in response');
-                    showError(data.error || 'Login failed - no token received');
+                    showMessage(data.error || 'Login failed - no token received', true);
                 }
 
             } catch (error) {
                 addDebug(`LOGIN ERROR: ${error.message}`);
-                showError(`Login failed: ${error.message}`);
+                showMessage(`Login failed: ${error.message}`, true);
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Sign In';
@@ -434,27 +513,12 @@
             showLogin();
         }
 
-        function showError(message, color = 'red') {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            errorDiv.style.backgroundColor = color === 'green' ? '#27ae60' : '#e74c3c';
-            addDebug(`Error/Message shown: ${message}`);
-            
-            // Auto-hide after 5 seconds for success messages
-            if (color === 'green') {
-                setTimeout(() => {
-                    errorDiv.style.display = 'none';
-                }, 5000);
-            }
-        }
-
         function loadBills() {
             addDebug('Loading bills...');
             
             if (!authToken) {
                 addDebug('No auth token - cannot load bills');
-                showError('Authentication required');
+                showMessage('Authentication required', true);
                 return;
             }
 
@@ -474,23 +538,37 @@
             .then(data => {
                 addDebug(`Bills data received: ${data.bills ? data.bills.length : 0} bills`);
                 displayBills(data.bills || []);
-                document.getElementById('loadingIndicator').style.display = 'none';
-                document.getElementById('billsList').style.display = 'block';
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                const billsList = document.getElementById('billsList');
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                if (billsList) billsList.style.display = 'block';
             })
             .catch(error => {
                 addDebug(`Error loading bills: ${error.message}`);
-                document.getElementById('loadingIndicator').innerHTML = `
-                    <p style="color: red;">Error loading bills: ${error.message}</p>
-                    <button onclick="loadBills()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Try Again</button>
-                `;
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) {
+                    loadingIndicator.innerHTML = `
+                        <p style="color: red;">Error loading bills: ${error.message}</p>
+                        <button id="retryBillsBtn" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Try Again</button>
+                    `;
+                    
+                    // Add event listener for retry button
+                    const retryBtn = document.getElementById('retryBillsBtn');
+                    if (retryBtn) {
+                        retryBtn.addEventListener('click', loadBills);
+                    }
+                }
             });
         }
 
         function loadSyncStatus() {
             addDebug('Loading sync status...');
+            const syncStatus = document.getElementById('syncStatus');
             
             if (!currentUser || currentUser.role !== 'admin') {
-                document.getElementById('syncStatus').innerHTML = '📊 Bills loaded from database';
+                if (syncStatus) {
+                    syncStatus.innerHTML = '📊 Bills loaded from database';
+                }
                 return;
             }
             
@@ -504,24 +582,29 @@
             })
             .catch(error => {
                 addDebug(`Error loading sync status: ${error.message}`);
-                document.getElementById('syncStatus').innerHTML = '⚠️ Sync status unavailable';
+                if (syncStatus) {
+                    syncStatus.innerHTML = '⚠️ Sync status unavailable';
+                }
             });
         }
 
         function updateSyncStatus(data) {
             const statusDiv = document.getElementById('syncStatus');
-            statusDiv.innerHTML = `
-                📊 Total Bills: ${data.totalBills || 0} | 
-                🤖 LegiScan: ${data.legiscanBills || 0} | 
-                ✋ Manual: ${data.manualBills || 0} | 
-                🕒 Last Sync: ${data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never'}
-            `;
+            if (statusDiv) {
+                statusDiv.innerHTML = `
+                    📊 Total Bills: ${data.totalBills || 0} | 
+                    🤖 LegiScan: ${data.legiscanBills || 0} | 
+                    ✋ Manual: ${data.manualBills || 0} | 
+                    🕒 Last Sync: ${data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never'}
+                `;
+            }
         }
 
         function displayBills(bills) {
             const container = document.getElementById('billsContainer');
+            if (!container) return;
+            
             container.innerHTML = '';
-
             addDebug(`Displaying ${bills.length} bills`);
 
             if (bills.length === 0) {
@@ -548,16 +631,59 @@
             });
         }
 
-        // Initial connection test
-        setTimeout(() => {
-            testConnection();
-        }, 1000);
-
-        // Add event listeners for Enter key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && document.getElementById('loginOverlay').style.display !== 'none') {
-                performLogin();
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            addDebug('DOM loaded, setting up app...');
+            
+            // Clear any existing auth data
+            clearAuthData();
+            
+            // Show login screen
+            showLogin();
+            
+            // Set up event listeners
+            const testConnectionBtn = document.getElementById('testConnectionBtn');
+            const testAPIBtn = document.getElementById('testAPIBtn');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const passwordInput = document.getElementById('password');
+            
+            if (testConnectionBtn) {
+                testConnectionBtn.addEventListener('click', testConnection);
+                addDebug('Test Connection button listener added');
             }
+            
+            if (testAPIBtn) {
+                testAPIBtn.addEventListener('click', testAPICall);
+                addDebug('Test API button listener added');
+            }
+            
+            if (loginBtn) {
+                loginBtn.addEventListener('click', performLogin);
+                addDebug('Login button listener added');
+            }
+            
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+                addDebug('Logout button listener added');
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        performLogin();
+                    }
+                });
+                addDebug('Password enter key listener added');
+            }
+            
+            addDebug('All event listeners set up');
+            
+            // Test connection automatically
+            setTimeout(() => {
+                addDebug('Running automatic connection test...');
+                testConnection();
+            }, 1000);
         });
     </script>
 </body>
