@@ -1,7 +1,7 @@
 {
   "name": "legislative-tracker",
-  "version": "4.0.0",
-  "description": "LLM-powered legislative bill tracking system with AI-generated content discovery (upgraded from LegiScan API)",
+  "version": "2.0.0",
+  "description": "Legislative bill tracking system with LegiScan API integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -23,6 +23,7 @@
     "pg": "^8.13.1",
     "pg-hstore": "^2.3.4",
     "dotenv": "^16.4.7",
+    "axios": "^1.7.9",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {
@@ -32,29 +33,15 @@
     "legislative",
     "bills",
     "tracking",
-    "llm",
-    "ai",
-    "anthropic",
-    "claude",
+    "legiscan",
+    "api",
     "law enforcement",
-    "financial crimes",
-    "bill discovery"
+    "financial crimes"
   ],
   "author": "Your Organization",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "your-repo-url"
-  },
-  "llmUpgrade": {
-    "previousVersion": "2.0.0-legiscan",
-    "newVersion": "4.0.0-llm-powered",
-    "migrationDate": "2025-01-29",
-    "changes": [
-      "Removed axios dependency (no more external API calls)",
-      "Replaced LegiScan API with LLM integration",
-      "Enhanced frontend with better UI/UX",
-      "Maintained all existing functionality"
-    ]
   }
 }
