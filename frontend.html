@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced LegiScan Law Enforcement Training Legislation Tracker</title>
+    <title>LLM-Powered Legislative Tracker</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -19,36 +24,41 @@
             min-height: 100vh;
             box-shadow: 0 0 30px rgba(0,0,0,0.1);
         }
+
+        /* Header Styles */
         .header {
             background: linear-gradient(135deg, #2c3e50, #3498db);
             color: white;
-            padding: 25px;
+            padding: 20px;
             position: relative;
             border-bottom: 4px solid #27ae60;
         }
+
         .header h1 {
-            margin: 0 0 15px 0;
-            font-size: 32px;
             text-align: center;
+            font-size: 28px;
             font-weight: 700;
+            margin-bottom: 10px;
         }
+
         .header p {
-            margin: 0;
             text-align: center;
             opacity: 0.95;
-            font-size: 18px;
+            font-size: 16px;
         }
-        .version-badge {
+
+        .llm-badge {
             position: absolute;
             top: 15px;
             left: 20px;
-            background: rgba(46, 204, 113, 0.3);
-            padding: 6px 12px;
-            border-radius: 20px;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            padding: 8px 16px;
+            border-radius: 25px;
             font-size: 12px;
+            font-weight: 600;
             border: 1px solid rgba(46, 204, 113, 0.5);
-            font-weight: 500;
         }
+
         .auth-controls {
             position: absolute;
             top: 15px;
@@ -57,10 +67,12 @@
             align-items: center;
             gap: 15px;
         }
+
         .user-info {
             font-size: 14px;
             color: rgba(255,255,255,0.9);
         }
+
         .admin-badge {
             background: rgba(46, 204, 113, 0.3);
             padding: 4px 12px;
@@ -69,41 +81,66 @@
             border: 1px solid rgba(46, 204, 113, 0.5);
             font-weight: 500;
         }
+
         .logout-btn {
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.3);
             color: white;
             padding: 8px 16px;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
             transition: background 0.2s;
         }
+
         .logout-btn:hover {
             background: rgba(255,255,255,0.3);
         }
-        .enhanced-status {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: white;
-            padding: 15px 20px;
-            font-size: 14px;
-            text-align: center;
-            border-bottom: 1px solid #229954;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-        }
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .controls-section {
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 25px;
             background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            transition: transform 0.2s;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Controls Section */
+        .controls-section {
+            background: white;
             padding: 25px;
             border-bottom: 1px solid #e9ecef;
         }
+
         .search-controls {
             display: flex;
             gap: 15px;
@@ -111,6 +148,7 @@
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
+
         .search-input {
             flex: 1;
             min-width: 300px;
@@ -120,17 +158,20 @@
             font-size: 14px;
             transition: all 0.2s;
         }
+
         .search-input:focus {
             outline: none;
             border-color: #3498db;
             box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
         }
+
         .filter-controls {
             display: flex;
             gap: 15px;
             align-items: center;
             flex-wrap: wrap;
         }
+
         .filter-select {
             padding: 14px 18px;
             border: 2px solid #e9ecef;
@@ -141,13 +182,14 @@
             min-width: 150px;
             transition: border-color 0.2s;
         }
+
         .filter-select:focus {
             outline: none;
             border-color: #3498db;
         }
-        .search-btn, .sync-btn, .test-btn {
+
+        .llm-sync-btn, .add-bill-btn {
             padding: 14px 28px;
-            background: #3498db;
             color: white;
             border: none;
             border-radius: 10px;
@@ -158,95 +200,56 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .search-btn:hover, .sync-btn:hover, .test-btn:hover {
-            background: #2980b9;
+
+        .llm-sync-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .llm-sync-btn:hover {
+            background: linear-gradient(135deg, #229954, #27ae60);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+
+        .add-bill-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .add-bill-btn:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
         }
-        .sync-btn {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-        .sync-btn:hover {
-            background: linear-gradient(135deg, #229954, #27ae60);
-        }
-        .test-btn {
-            background: linear-gradient(135deg, #e67e22, #f39c12);
-        }
-        .test-btn:hover {
-            background: linear-gradient(135deg, #d35400, #e67e22);
-        }
-        .sync-btn:disabled, .test-btn:disabled {
+
+        .llm-sync-btn:disabled, .add-bill-btn:disabled {
             background: #95a5a6;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 25px;
-            background: white;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .stat-item {
-            text-align: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #f8f9fa, #ffffff);
-            border-radius: 12px;
-            border: 1px solid #e9ecef;
-            transition: transform 0.2s;
-        }
-        .stat-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .stat-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 8px;
-        }
-        .stat-label {
-            color: #7f8c8d;
-            font-size: 14px;
-            font-weight: 500;
-        }
+
+        /* Bills Grid */
         .main-content {
             padding: 25px;
         }
-        .loading {
-            text-align: center;
-            padding: 80px;
-            color: #7f8c8d;
-        }
-        .loading-spinner {
-            border: 4px solid #ecf0f1;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 25px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+
         .bills-grid {
             display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
             gap: 30px;
         }
+
         .bill-card {
             background: white;
             border: 1px solid #e9ecef;
             border-radius: 16px;
-            padding: 32px;
+            padding: 25px;
             transition: all 0.3s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.07);
             position: relative;
             overflow: hidden;
         }
+
         .bill-card::before {
             content: '';
             position: absolute;
@@ -256,10 +259,12 @@
             height: 4px;
             background: linear-gradient(90deg, #3498db, #2ecc71);
         }
+
         .bill-card:hover {
             box-shadow: 0 12px 24px rgba(0,0,0,0.15);
             transform: translateY(-4px);
         }
+
         .bill-header {
             display: flex;
             justify-content: space-between;
@@ -268,11 +273,13 @@
             flex-wrap: wrap;
             gap: 10px;
         }
+
         .bill-badges {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
         }
+
         .bill-number {
             background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
@@ -283,6 +290,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .bill-state {
             background: linear-gradient(135deg, #9b59b6, #8e44ad);
             color: white;
@@ -291,6 +299,7 @@
             font-size: 12px;
             font-weight: 600;
         }
+
         .source-badge {
             padding: 6px 12px;
             border-radius: 20px;
@@ -298,121 +307,17 @@
             font-weight: 600;
             text-transform: uppercase;
         }
-        .source-legiscan {
+
+        .source-llm {
             background: linear-gradient(135deg, #27ae60, #2ecc71);
             color: white;
         }
+
         .source-manual {
             background: linear-gradient(135deg, #f39c12, #e67e22);
             color: white;
         }
-        .bill-title {
-            font-size: 22px;
-            font-weight: 700;
-            color: #2c3e50;
-            margin: 20px 0;
-            line-height: 1.4;
-        }
-        .bill-summary {
-            background: linear-gradient(135deg, #ecf0f1, #f8f9fa);
-            border-left: 4px solid #3498db;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 0 12px 12px 0;
-        }
-        .bill-summary h4 {
-            margin: 0 0 12px 0;
-            color: #2c3e50;
-            font-size: 16px;
-            font-weight: 700;
-        }
-        .bill-summary p {
-            margin: 0;
-            color: #555;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        .bill-description {
-            color: #555;
-            line-height: 1.7;
-            margin-bottom: 20px;
-            font-size: 15px;
-        }
-        .bill-meta {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 20px;
-        }
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .bill-status {
-            background: #fff3cd;
-            color: #856404;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-weight: 600;
-            font-size: 12px;
-        }
-        .bill-progress-container {
-            margin-bottom: 20px;
-        }
-        .bill-progress-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 13px;
-            color: #7f8c8d;
-        }
-        .progress-percentage {
-            font-weight: 700;
-            color: #2c3e50;
-            font-size: 16px;
-        }
-        .bill-progress {
-            width: 100%;
-            height: 12px;
-            background: #ecf0f1;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        .bill-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #3498db, #2ecc71);
-            transition: width 0.3s ease;
-            border-radius: 6px;
-            position: relative;
-        }
-        .bill-progress-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
-        }
-        .bill-keywords {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .keyword-tag {
-            background: linear-gradient(135deg, #e8f5e8, #d5f4e6);
-            color: #27ae60;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid rgba(39, 174, 96, 0.2);
-        }
+
         .relevance-score {
             padding: 6px 12px;
             border-radius: 15px;
@@ -421,65 +326,149 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .relevance-high {
             background: linear-gradient(135deg, #27ae60, #2ecc71);
             color: white;
         }
+
         .relevance-medium {
             background: linear-gradient(135deg, #f39c12, #e67e22);
             color: white;
         }
+
         .relevance-low {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
             color: white;
         }
-        .enhanced-info {
-            margin-top: 15px;
-            padding: 15px;
-            background: linear-gradient(135deg, #f8f9fa, #ffffff);
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
-        }
-        .enhanced-info h5 {
-            margin: 0 0 10px 0;
-            color: #2c3e50;
-            font-size: 14px;
+
+        .bill-title {
+            font-size: 18px;
             font-weight: 700;
+            color: #2c3e50;
+            margin: 15px 0;
+            line-height: 1.4;
         }
-        .enhanced-info p {
-            margin: 5px 0;
-            font-size: 12px;
+
+        .bill-description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .bill-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bill-progress-container {
+            margin-bottom: 20px;
+        }
+
+        .bill-progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 13px;
             color: #7f8c8d;
         }
-        .no-bills {
+
+        .progress-percentage {
+            font-weight: 700;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .bill-progress {
+            width: 100%;
+            height: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .bill-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            transition: width 0.3s ease;
+            border-radius: 5px;
+        }
+
+        .bill-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .keyword-tag {
+            background: linear-gradient(135deg, #e8f5e8, #d5f4e6);
+            color: #27ae60;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(39, 174, 96, 0.2);
+        }
+
+        /* Loading States */
+        .loading {
             text-align: center;
             padding: 80px;
             color: #7f8c8d;
         }
-        .no-bills-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-            opacity: 0.5;
+
+        .loading-spinner {
+            border: 4px solid #ecf0f1;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 25px;
         }
-        .debug-info {
-            background: #f8f9fa;
-            padding: 20px;
-            margin: 25px;
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Message Styles */
+        .message {
+            padding: 15px 20px;
+            margin: 20px 25px;
             border-radius: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            border-left: 4px solid #3498db;
-            max-height: 300px;
-            overflow-y: auto;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .error-message {
-            background: #f8d7da;
+
+        .message-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message-error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
             color: #721c24;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 25px;
-            border-left: 4px solid #dc3545;
+            border: 1px solid #f5c6cb;
         }
+
+        /* Login Overlay */
         .login-overlay {
             position: fixed;
             top: 0;
@@ -492,6 +481,7 @@
             justify-content: center;
             z-index: 1000;
         }
+
         .login-form {
             background: white;
             padding: 50px;
@@ -500,6 +490,7 @@
             width: 100%;
             max-width: 450px;
         }
+
         .login-form h2 {
             margin: 0 0 30px 0;
             text-align: center;
@@ -507,16 +498,19 @@
             font-size: 28px;
             font-weight: 700;
         }
+
         .form-group {
             margin-bottom: 25px;
         }
+
         .form-group label {
             display: block;
             margin-bottom: 10px;
             font-weight: 600;
             color: #2c3e50;
         }
-        .form-group input, .form-group textarea {
+
+        .form-group input, .form-group select, .form-group textarea {
             width: 100%;
             padding: 14px 18px;
             border: 2px solid #e9ecef;
@@ -526,15 +520,18 @@
             transition: border-color 0.2s;
             font-family: inherit;
         }
-        .form-group input:focus, .form-group textarea:focus {
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
             outline: none;
             border-color: #3498db;
             box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
         }
+
         .form-group textarea {
             resize: vertical;
-            min-height: 60px;
+            min-height: 80px;
         }
+
         .login-btn {
             width: 100%;
             padding: 16px;
@@ -549,42 +546,20 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .login-btn:hover {
             background: linear-gradient(135deg, #2980b9, #21618c);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
         }
+
         .login-btn:disabled {
             background: #95a5a6;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        .test-buttons {
-            margin: 25px 0;
-            text-align: center;
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .test-btn-small {
-            background: linear-gradient(135deg, #e67e22, #f39c12);
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .test-btn-small:hover {
-            background: linear-gradient(135deg, #d35400, #e67e22);
-            transform: translateY(-1px);
-        }
+
         .demo-creds {
             background: linear-gradient(135deg, #f8f9fa, #ffffff);
             padding: 20px;
@@ -595,106 +570,68 @@
             text-align: center;
             border: 1px solid #e9ecef;
         }
-        .success-message {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-            color: #155724;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+
+        .register-link {
             text-align: center;
-            font-size: 14px;
-            border: 1px solid #c3e6cb;
+            margin-top: 20px;
         }
-        .error-alert {
-            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-size: 14px;
-            border: 1px solid #f5c6cb;
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 40px;
-            padding: 25px;
-        }
-        .page-btn {
-            padding: 10px 15px;
-            border: 1px solid #e9ecef;
-            background: white;
-            color: #495057;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        .page-btn:hover {
-            background: #f8f9fa;
-            transform: translateY(-1px);
-        }
-        .page-btn.active {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            border-color: #3498db;
-        }
-        .page-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .sort-label {
-            font-size: 13px;
-            color: #6c757d;
-            margin-right: 10px;
+
+        .register-link a {
+            color: #3498db;
+            text-decoration: none;
             font-weight: 600;
         }
-        .api-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 12px;
+
+        .register-link a:hover {
+            color: #2980b9;
+            text-decoration: underline;
         }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #27ae60;
-            animation: pulse 2s infinite;
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .llm-badge, .auth-controls {
+                position: static;
+                margin: 10px 0;
+                justify-content: center;
+            }
+            
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .search-controls, .filter-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-input {
+                min-width: auto;
+            }
+            
+            .bills-grid {
+                grid-template-columns: 1fr;
+            }
         }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
         }
-        /* Add Bill Modal Styles */
-        .add-bill-form {
-            max-width: 600px;
+
+        .text-center {
+            text-align: center;
         }
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
+
+        .mt-4 {
+            margin-top: 1rem;
         }
-        .form-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        .form-note {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #6c757d;
-        }
-        .required {
-            color: #e74c3c;
+
+        .mb-4 {
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -702,122 +639,59 @@
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-form">
-            <h2>Enhanced Legislative Tracker</h2>
-            <div id="errorMessage" class="error-alert" style="display: none;"></div>
-            <div id="successMessage" class="success-message" style="display: none;"></div>
+            <h2>LLM Legislative Tracker</h2>
+            <div id="loginErrorMessage" class="message message-error hidden"></div>
+            <div id="loginSuccessMessage" class="message message-success hidden"></div>
             
-            <div class="test-buttons">
-                <button id="testConnectionBtn" class="test-btn-small">Test Connection</button>
-                <button id="testAPIBtn" class="test-btn-small">Test API</button>
-                <button id="testLegiScanBtn" class="test-btn-small">Test LegiScan</button>
-                <button id="directApiTestBtn" class="test-btn-small">Direct API</button>
-                <button id="simpleApiTestBtn" class="test-btn-small">Simple API</button>
-                <button id="addTestBillBtn" class="test-btn-small">Add Bill</button>
+            <div id="loginView">
+                <div class="form-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" placeholder="Enter your email" value="admin@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password:</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password" value="admin123">
+                </div>
+                <button id="loginBtn" class="login-btn">Sign In</button>
+                
+                <div class="register-link">
+                    <a href="#" id="showRegisterBtn">Need an account? Register here</a>
+                </div>
+                
+                <div class="demo-creds">
+                    <strong>LLM-Powered Version 4.0</strong><br>
+                    Demo Credentials:<br>
+                    Email: admin@example.com<br>
+                    Password: admin123
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" placeholder="Enter your email" value="admin@example.com">
-            </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" placeholder="Enter your password" value="admin123">
-            </div>
-            <button id="loginBtn" class="login-btn">Sign In</button>
-            
-            <div class="demo-creds">
-                <strong>Enhanced Version 3.1.0 - FIXED API</strong><br>
-                Demo Credentials:<br>
-                Email: admin@example.com<br>
-                Password: admin123
-            </div>
-        </div>
-    </div>
 
-    <!-- Add Bill Modal -->
-    <div id="addBillOverlay" class="login-overlay" style="display: none;">
-        <div class="login-form add-bill-form">
-            <h2>Add New Bill</h2>
-            <div id="addBillErrorMessage" class="error-alert" style="display: none;"></div>
-            <div id="addBillSuccessMessage" class="success-message" style="display: none;"></div>
-            
-            <div class="form-group">
-                <label for="addBillNumber">Bill Number: <span class="required">*</span></label>
-                <input type="text" id="addBillNumber" placeholder="e.g., HB123, SB456, H.R.789" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="addBillTitle">Bill Title: <span class="required">*</span></label>
-                <textarea id="addBillTitle" placeholder="Enter the full bill title" required style="min-height: 60px;"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="addBillDescription">Description:</label>
-                <textarea id="addBillDescription" placeholder="Enter bill description or summary" style="min-height: 100px;"></textarea>
-            </div>
-            
-            <div class="form-grid">
+            <div id="registerView" class="hidden">
                 <div class="form-group">
-                    <label for="addBillState">State/Jurisdiction:</label>
-                    <select id="addBillState" class="filter-select">
-                        <option value="CUSTOM">Custom/Other</option>
-                        <option value="US">Federal</option>
-                        <option value="CA">California</option>
-                        <option value="TX">Texas</option>
-                        <option value="FL">Florida</option>
-                        <option value="NY">New York</option>
-                        <option value="IL">Illinois</option>
-                        <option value="PA">Pennsylvania</option>
-                        <option value="OH">Ohio</option>
-                    </select>
+                    <label for="firstName">First Name:</label>
+                    <input type="text" id="firstName" placeholder="Enter your first name">
                 </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name:</label>
+                    <input type="text" id="lastName" placeholder="Enter your last name">
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email:</label>
+                    <input type="email" id="registerEmail" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password:</label>
+                    <input type="password" id="registerPassword" placeholder="Enter your password (min 6 characters)">
+                </div>
+                <div class="form-group">
+                    <label for="organization">Organization (Optional):</label>
+                    <input type="text" id="organization" placeholder="Enter your organization">
+                </div>
+                <button id="registerBtn" class="login-btn">Register</button>
                 
-                <div class="form-group">
-                    <label for="addBillStatus">Status:</label>
-                    <select id="addBillStatus" class="filter-select">
-                        <option value="Introduced">Introduced</option>
-                        <option value="In Committee">In Committee</option>
-                        <option value="Committee Review">Committee Review</option>
-                        <option value="Floor Consideration">Floor Consideration</option>
-                        <option value="Passed Chamber">Passed Chamber</option>
-                        <option value="Sent to Other Chamber">Sent to Other Chamber</option>
-                        <option value="Enrolled/Enacted">Enrolled/Enacted</option>
-                        <option value="Vetoed">Vetoed</option>
-                        <option value="Failed/Dead">Failed/Dead</option>
-                    </select>
+                <div class="register-link">
+                    <a href="#" id="showLoginBtn">Already have an account? Sign in</a>
                 </div>
-            </div>
-            
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="addBillProgress">Progress Percentage:</label>
-                    <input type="number" id="addBillProgress" min="0" max="100" value="15" placeholder="0-100">
-                </div>
-                
-                <div class="form-group">
-                    <label for="addBillRelevance">Relevance Score:</label>
-                    <input type="number" id="addBillRelevance" min="0" max="10" value="5" placeholder="0-10">
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="addBillFunding">Funding/Appropriation:</label>
-                <input type="text" id="addBillFunding" placeholder="e.g., $5 million appropriation, Grant funding, Not specified">
-            </div>
-            
-            <div class="form-group">
-                <label for="addBillKeywords">Keywords (comma-separated):</label>
-                <input type="text" id="addBillKeywords" placeholder="e.g., law enforcement training, financial crimes, grant funding">
-            </div>
-            
-            <div class="form-actions">
-                <button id="saveBillBtn" class="login-btn" style="flex: 1;">Save Bill</button>
-                <button id="cancelAddBillBtn" class="logout-btn" style="flex: 1; background: #95a5a6;">Cancel</button>
-            </div>
-            
-            <div class="form-note">
-                <strong>Note:</strong> Fields marked with <span class="required">*</span> are required. 
-                The system will automatically set the introduced date to today and assign appropriate chamber based on bill number.
             </div>
         </div>
     </div>
@@ -825,61 +699,40 @@
     <!-- Main Application -->
     <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
-            <div class="version-badge">v3.1.0 - FIXED API</div>
+            <div class="llm-badge">🤖 AI Powered</div>
             <div class="auth-controls">
                 <div class="user-info">
                     <span id="userDisplay"></span>
-                    <span id="adminBadge" class="admin-badge" style="display: none;">Admin</span>
+                    <span id="adminBadge" class="admin-badge hidden">Admin</span>
                 </div>
                 <button id="logoutBtn" class="logout-btn">Logout</button>
             </div>
-            <h1>Enhanced LegiScan Law Enforcement Training Legislation Tracker</h1>
-            <p>Advanced real-time tracking with multi-state search, smart relevance scoring, and FIXED LegiScan integration</p>
+            <h1>LLM-Powered Legislative Tracker</h1>
+            <p>AI-generated bill discovery using advanced language models for law enforcement training and financial crimes legislation</p>
         </div>
         
-        <div id="enhancedStatus" class="enhanced-status">
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span id="statusText">🔄 Loading enhanced system status...</span>
-            </div>
-            <div class="status-item">
-                <span class="api-status">📡 LegiScan API: <span id="apiStatus">Checking...</span></span>
-            </div>
-            <div class="status-item">
-                <span id="versionInfo">🚀 Enhanced v3.1.0 - FIXED</span>
-            </div>
-        </div>
-
         <div class="stats-bar" id="statsBar">
             <div class="stat-item">
                 <div class="stat-number" id="totalBillsCount">-</div>
                 <div class="stat-label">Total Bills</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number" id="legiscanBillsCount">-</div>
-                <div class="stat-label">LegiScan Bills</div>
+                <div class="stat-number" id="llmBillsCount">-</div>
+                <div class="stat-label">AI Generated</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="manualBillsCount">-</div>
-                <div class="stat-label">Manual Bills</div>
+                <div class="stat-label">Manual Entry</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="relevantBillsCount">-</div>
                 <div class="stat-label">High Relevance</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="keywordsCount">-</div>
-                <div class="stat-label">Keywords Tracked</div>
             </div>
         </div>
 
         <div class="controls-section">
             <div class="search-controls">
                 <input type="text" id="searchInput" class="search-input" placeholder="Search bills by title, description, keywords, or subjects...">
-                <button id="searchBtn" class="search-btn">Search</button>
-                <button id="syncBtn" class="sync-btn">FIXED Sync</button>
-                <button id="testLegiScanMainBtn" class="test-btn">Test LegiScan</button>
-                <button id="addBillMainBtn" class="test-btn">Add Bill</button>
             </div>
             
             <div class="filter-controls">
@@ -890,9 +743,6 @@
                     <option value="TX">Texas</option>
                     <option value="FL">Florida</option>
                     <option value="NY">New York</option>
-                    <option value="IL">Illinois</option>
-                    <option value="PA">Pennsylvania</option>
-                    <option value="OH">Ohio</option>
                 </select>
                 
                 <select id="statusFilter" class="filter-select">
@@ -905,1114 +755,480 @@
                 
                 <select id="sourceFilter" class="filter-select">
                     <option value="all">All Sources</option>
-                    <option value="legiscan">LegiScan Only</option>
-                    <option value="manual">Manual Only</option>
+                    <option value="llm">AI Generated</option>
+                    <option value="manual">Manual Entry</option>
                 </select>
                 
-                <span class="sort-label">Sort by:</span>
-                <select id="sortSelect" class="filter-select">
-                    <option value="relevanceScore">Relevance Score</option>
-                    <option value="progressPercentage">Progress %</option>
-                    <option value="introducedDate">Date Introduced</option>
-                    <option value="title">Bill Title</option>
-                    <option value="lastSynced">Last Synced</option>
-                    <option value="createdAt">Date Added</option>
+                <select id="relevanceFilter" class="filter-select">
+                    <option value="all">All Relevance</option>
+                    <option value="high">High (7-10)</option>
+                    <option value="medium">Medium (4-6)</option>
+                    <option value="low">Low (1-3)</option>
                 </select>
                 
-                <select id="sortOrderSelect" class="filter-select">
-                    <option value="DESC">High to Low</option>
-                    <option value="ASC">Low to High</option>
-                </select>
+                <button id="llmSyncBtn" class="llm-sync-btn">🤖 AI Sync</button>
+                <button id="addBillBtn" class="add-bill-btn">➕ Add Bill</button>
             </div>
         </div>
 
-        <div id="debugInfo" class="debug-info">
-            <strong>Enhanced System Debug Information:</strong><br>
-            <span id="debugText">Initializing enhanced system...</span>
-        </div>
-        
+        <!-- Messages -->
+        <div id="successMessage" class="message message-success hidden"></div>
+        <div id="errorMessage" class="message message-error hidden"></div>
+
         <div class="main-content">
             <div id="loadingIndicator" class="loading">
                 <div class="loading-spinner"></div>
-                Loading enhanced legislative data with FIXED LegiScan integration...
+                Loading AI-powered legislative data...
             </div>
             
-            <div id="billsContainer" style="display: none;">
+            <div id="billsContainer" class="hidden">
                 <div class="bills-grid" id="billsGrid"></div>
-                <div class="pagination" id="pagination"></div>
             </div>
             
-            <div id="noBillsMessage" class="no-bills" style="display: none;">
-                <div class="no-bills-icon">📋</div>
+            <div id="noBillsMessage" class="loading hidden">
+                <div style="font-size: 64px; margin-bottom: 20px; opacity: 0.5;">📋</div>
                 <h3>No Bills Found</h3>
-                <p>Try adjusting your search criteria or run the FIXED sync to get the latest data from LegiScan.</p>
+                <p>Try adjusting your search criteria or run the AI sync to generate new relevant bills.</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Global state variables
+        // Global state
         let currentUser = null;
         let authToken = null;
-        let debugLog = [];
-        let allBills = [];
-        let filteredBills = [];
-        let currentPage = 1;
-        let billsPerPage = 10;
-        let enhancedMode = true;
+        let bills = [];
+        let isLoading = false;
 
-        // Debug logging function
-        function addDebug(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            const logMessage = `${timestamp}: ${message}`;
-            debugLog.push(logMessage);
+        // DOM elements
+        const loginOverlay = document.getElementById('loginOverlay');
+        const mainContainer = document.getElementById('mainContainer');
+        const loginView = document.getElementById('loginView');
+        const registerView = document.getElementById('registerView');
+        const loginErrorMessage = document.getElementById('loginErrorMessage');
+        const loginSuccessMessage = document.getElementById('loginSuccessMessage');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const billsContainer = document.getElementById('billsContainer');
+        const noBillsMessage = document.getElementById('noBillsMessage');
+        const billsGrid = document.getElementById('billsGrid');
+
+        // Utility functions
+        function showMessage(message, isError = false, isLogin = false) {
+            const messageEl = isLogin ? 
+                (isError ? loginErrorMessage : loginSuccessMessage) :
+                (isError ? errorMessage : successMessage);
             
-            if (debugLog.length > 20) {
-                debugLog = debugLog.slice(-20);
-            }
+            messageEl.textContent = message;
+            messageEl.classList.remove('hidden');
             
-            const debugElement = document.getElementById('debugText');
-            if (debugElement) {
-                debugElement.innerHTML = debugLog.join('<br>');
+            // Hide other message type
+            const otherEl = isLogin ?
+                (isError ? loginSuccessMessage : loginErrorMessage) :
+                (isError ? successMessage : errorMessage);
+            otherEl.classList.add('hidden');
+            
+            if (!isError) {
+                setTimeout(() => messageEl.classList.add('hidden'), 5000);
             }
-            console.log('DEBUG:', logMessage);
         }
 
-        // Clear authentication data
-        function clearAuthData() {
-            try {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('user');
-            } catch (e) {
-                addDebug('LocalStorage not available');
+        function hideAllMessages() {
+            [loginErrorMessage, loginSuccessMessage, successMessage, errorMessage].forEach(el => {
+                el.classList.add('hidden');
+            });
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            if (loading) {
+                loadingIndicator.classList.remove('hidden');
+                billsContainer.classList.add('hidden');
+                noBillsMessage.classList.add('hidden');
+            } else {
+                loadingIndicator.classList.add('hidden');
             }
+        }
+
+        // Authentication functions
+        async function login(email, password) {
+            try {
+                setLoading(true);
+                hideAllMessages();
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data.user;
+                    authToken = data.accessToken;
+                    localStorage.setItem('authToken', data.accessToken);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    showMainInterface();
+                    showMessage('Login successful!', false);
+                    await loadBills();
+                } else {
+                    showMessage(data.error || 'Login failed', true, true);
+                }
+            } catch (error) {
+                showMessage('Network error during login', true, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function register(userData) {
+            try {
+                setLoading(true);
+                hideAllMessages();
+                
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('Registration successful! Awaiting admin approval.', false, true);
+                    showLoginView();
+                } else {
+                    showMessage(data.error || 'Registration failed', true, true);
+                }
+            } catch (error) {
+                showMessage('Network error during registration', true, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function logout() {
             currentUser = null;
             authToken = null;
-            addDebug('Auth data cleared');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            bills = [];
+            showLoginInterface();
         }
 
-        // Show login screen
-        function showLogin() {
-            const loginOverlay = document.getElementById('loginOverlay');
-            const mainContainer = document.getElementById('mainContainer');
-            if (loginOverlay) loginOverlay.style.display = 'flex';
-            if (mainContainer) mainContainer.style.display = 'none';
-            addDebug('Login screen shown');
+        // Interface functions
+        function showLoginInterface() {
+            loginOverlay.style.display = 'flex';
+            mainContainer.style.display = 'none';
+            hideAllMessages();
         }
 
-        // Show main interface
         function showMainInterface() {
-            addDebug('Showing enhanced main interface');
-            const loginOverlay = document.getElementById('loginOverlay');
-            const mainContainer = document.getElementById('mainContainer');
+            loginOverlay.style.display = 'none';
+            mainContainer.style.display = 'block';
+            
             const userDisplay = document.getElementById('userDisplay');
             const adminBadge = document.getElementById('adminBadge');
             
-            if (loginOverlay) loginOverlay.style.display = 'none';
-            if (mainContainer) mainContainer.style.display = 'block';
             if (userDisplay && currentUser) {
                 userDisplay.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
             }
             
             if (adminBadge && currentUser && currentUser.role === 'admin') {
-                adminBadge.style.display = 'inline';
-                addDebug('Enhanced admin privileges enabled');
+                adminBadge.classList.remove('hidden');
+                document.getElementById('llmSyncBtn').style.display = 'block';
+                document.getElementById('addBillBtn').style.display = 'block';
+            } else {
+                document.getElementById('llmSyncBtn').style.display = 'none';
+                document.getElementById('addBillBtn').style.display = 'none';
             }
         }
 
-        // Show messages to user
-        function showMessage(message, isError = true) {
-            const errorDiv = document.getElementById('errorMessage');
-            const successDiv = document.getElementById('successMessage');
+        function showLoginView() {
+            loginView.classList.remove('hidden');
+            registerView.classList.add('hidden');
+            hideAllMessages();
+        }
+
+        function showRegisterView() {
+            loginView.classList.add('hidden');
+            registerView.classList.remove('hidden');
+            hideAllMessages();
+        }
+
+        // Data functions
+        async function loadBills() {
+            if (!authToken) return;
             
-            if (isError) {
-                if (errorDiv) {
-                    errorDiv.textContent = message;
-                    errorDiv.style.display = 'block';
-                }
-                if (successDiv) {
-                    successDiv.style.display = 'none';
-                }
-            } else {
-                if (successDiv) {
-                    successDiv.textContent = message;
-                    successDiv.style.display = 'block';
-                }
-                if (errorDiv) {
-                    errorDiv.style.display = 'none';
-                }
+            try {
+                setLoading(true);
+                hideAllMessages();
                 
+                const params = new URLSearchParams({
+                    limit: '50',
+                    sortBy: 'relevanceScore',
+                    sortOrder: 'DESC'
+                });
+
+                const response = await fetch(`/api/bills?${params}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    bills = data.bills || [];
+                    updateStats(data.stats || {});
+                    displayBills();
+                } else {
+                    showMessage('Failed to load bills', true);
+                }
+            } catch (error) {
+                showMessage('Network error loading bills', true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('totalBillsCount').textContent = stats.totalBills || 0;
+            document.getElementById('llmBillsCount').textContent = stats.llmBills || 0;
+            document.getElementById('manualBillsCount').textContent = stats.manualBills || 0;
+            document.getElementById('relevantBillsCount').textContent = stats.highRelevance || 0;
+        }
+
+        function displayBills() {
+            if (bills.length === 0) {
+                billsContainer.classList.add('hidden');
+                noBillsMessage.classList.remove('hidden');
+                return;
+            }
+            
+            billsContainer.classList.remove('hidden');
+            noBillsMessage.classList.add('hidden');
+            
+            billsGrid.innerHTML = '';
+            
+            bills.forEach(bill => {
+                const billCard = createBillCard(bill);
+                billsGrid.appendChild(billCard);
+            });
+        }
+
+        function createBillCard(bill) {
+            const div = document.createElement('div');
+            div.className = 'bill-card';
+            
+            const relevanceScore = bill.relevanceScore || 0;
+            let relevanceClass = 'relevance-low';
+            let relevanceText = 'Low';
+            
+            if (relevanceScore >= 7) {
+                relevanceClass = 'relevance-high';
+                relevanceText = 'High';
+            } else if (relevanceScore >= 4) {
+                relevanceClass = 'relevance-medium';
+                relevanceText = 'Medium';
+            }
+            
+            const keywords = (bill.keywords || '').split(',').map(k => k.trim()).filter(k => k);
+            const keywordTags = keywords.slice(0, 4).map(keyword => 
+                `<span class="keyword-tag">${keyword}</span>`
+            ).join('');
+            
+            div.innerHTML = `
+                <div class="bill-header">
+                    <div class="bill-badges">
+                        <span class="bill-number">${bill.billNumber || 'Unknown'}</span>
+                        <span class="bill-state">${bill.stateCode || 'Unknown'}</span>
+                        <span class="source-badge source-${bill.sourceType || 'manual'}">${bill.sourceType === 'llm' ? 'AI Generated' : 'Manual'}</span>
+                        <span class="relevance-score ${relevanceClass}">${relevanceText}: ${relevanceScore}/10</span>
+                    </div>
+                </div>
+                
+                <h3 class="bill-title">${bill.title || 'No title available'}</h3>
+                
+                <p class="bill-description">${(bill.description || 'No description available').substring(0, 200)}${bill.description && bill.description.length > 200 ? '...' : ''}</p>
+                
+                <div class="bill-meta">
+                    <div class="meta-item">
+                        <span>📊 Status:</span>
+                        <span>${bill.status || 'Unknown'}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>🏛️ Chamber:</span>
+                        <span>${bill.chamber || 'Unknown'}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅 Introduced:</span>
+                        <span>${bill.introducedDate ? new Date(bill.introducedDate).toLocaleDateString() : 'Unknown'}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>💰 Funding:</span>
+                        <span>${bill.fundsAllocated || 'Not specified'}</span>
+                    </div>
+                </div>
+                
+                <div class="bill-progress-container">
+                    <div class="bill-progress-label">
+                        <span>Legislative Progress</span>
+                        <span class="progress-percentage">${bill.progressPercentage || 0}%</span>
+                    </div>
+                    <div class="bill-progress">
+                        <div class="bill-progress-fill" style="width: ${bill.progressPercentage || 0}%"></div>
+                    </div>
+                </div>
+                
+                ${keywordTags ? `<div class="bill-keywords">${keywordTags}</div>` : ''}
+            `;
+            
+            return div;
+        }
+
+        // Admin functions
+        async function triggerLLMSync() {
+            if (!authToken || currentUser?.role !== 'admin') return;
+            
+            try {
+                document.getElementById('llmSyncBtn').disabled = true;
+                document.getElementById('llmSyncBtn').textContent = '🤖 Syncing...';
+                hideAllMessages();
+                
+                const response = await fetch('/api/admin/sync-bills-llm', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('AI bill generation started! New bills will appear shortly.', false);
+                    setTimeout(() => loadBills(), 10000);
+                } else {
+                    showMessage(data.error || 'Sync failed', true);
+                }
+            } catch (error) {
+                showMessage('Network error during sync', true);
+            } finally {
                 setTimeout(() => {
-                    if (successDiv) successDiv.style.display = 'none';
+                    document.getElementById('llmSyncBtn').disabled = false;
+                    document.getElementById('llmSyncBtn').textContent = '🤖 AI Sync';
                 }, 5000);
             }
-            
-            addDebug(`Message shown (${isError ? 'error' : 'success'}): ${message}`);
         }
 
-        // Show Add Bill message
-        function showAddBillMessage(message, isError = true) {
-            const errorDiv = document.getElementById('addBillErrorMessage');
-            const successDiv = document.getElementById('addBillSuccessMessage');
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for existing auth
+            const token = localStorage.getItem('authToken');
+            const user = localStorage.getItem('user');
             
-            if (isError) {
-                if (errorDiv) {
-                    errorDiv.textContent = message;
-                    errorDiv.style.display = 'block';
-                }
-                if (successDiv) {
-                    successDiv.style.display = 'none';
-                }
+            if (token && user) {
+                authToken = token;
+                currentUser = JSON.parse(user);
+                showMainInterface();
+                loadBills();
             } else {
-                if (successDiv) {
-                    successDiv.textContent = message;
-                    successDiv.style.display = 'block';
+                showLoginInterface();
+            }
+            
+            // Login/Register events
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                if (email && password) {
+                    login(email, password);
                 }
-                if (errorDiv) {
-                    errorDiv.style.display = 'none';
-                }
-            }
-        }
-
-        // Show Add Bill modal
-        function showAddBillModal() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required to add bills', true);
-                return;
-            }
+            });
             
-            const addBillOverlay = document.getElementById('addBillOverlay');
-            if (addBillOverlay) {
-                addBillOverlay.style.display = 'flex';
-                // Clear form
-                document.getElementById('addBillNumber').value = '';
-                document.getElementById('addBillTitle').value = '';
-                document.getElementById('addBillDescription').value = '';
-                document.getElementById('addBillState').value = 'CUSTOM';
-                document.getElementById('addBillStatus').value = 'Introduced';
-                document.getElementById('addBillProgress').value = '15';
-                document.getElementById('addBillRelevance').value = '5';
-                document.getElementById('addBillFunding').value = '';
-                document.getElementById('addBillKeywords').value = '';
-                
-                // Clear messages
-                const errorMsg = document.getElementById('addBillErrorMessage');
-                const successMsg = document.getElementById('addBillSuccessMessage');
-                if (errorMsg) errorMsg.style.display = 'none';
-                if (successMsg) successMsg.style.display = 'none';
-            }
-            addDebug('Add Bill modal opened');
-        }
-
-        // Hide Add Bill modal
-        function hideAddBillModal() {
-            const addBillOverlay = document.getElementById('addBillOverlay');
-            if (addBillOverlay) {
-                addBillOverlay.style.display = 'none';
-            }
-            addDebug('Add Bill modal closed');
-        }
-
-        // Save new bill
-        async function saveNewBill() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showAddBillMessage('Admin access required to add bills', true);
-                return;
-            }
-            
-            const saveBillBtn = document.getElementById('saveBillBtn');
-            if (!saveBillBtn) return;
-            
-            // Get form values
-            const billNumber = document.getElementById('addBillNumber').value.trim();
-            const title = document.getElementById('addBillTitle').value.trim();
-            const description = document.getElementById('addBillDescription').value.trim();
-            const stateCode = document.getElementById('addBillState').value;
-            const status = document.getElementById('addBillStatus').value;
-            const progressPercentage = document.getElementById('addBillProgress').value;
-            const relevanceScore = document.getElementById('addBillRelevance').value;
-            const fundsAllocated = document.getElementById('addBillFunding').value.trim() || 'Not specified';
-            const keywords = document.getElementById('addBillKeywords').value.trim();
-            
-            // Validate required fields
-            if (!billNumber || !title) {
-                showAddBillMessage('Bill Number and Title are required fields', true);
-                return;
-            }
-            
-            // Validate bill number format
-            if (!/^[A-Za-z]{1,3}\.?\s*[A-Za-z]*\.?\s*\d+$/.test(billNumber)) {
-                showAddBillMessage('Please enter a valid bill number format (e.g., HB123, S.456, H.R.789)', true);
-                return;
-            }
-            
-            saveBillBtn.disabled = true;
-            saveBillBtn.textContent = 'Saving...';
-            
-            try {
-                addDebug(`Creating new bill: ${billNumber}`);
-                
-                const billData = {
-                    stateCode,
-                    billNumber,
-                    title,
-                    description,
-                    status,
-                    progressPercentage: parseInt(progressPercentage) || 15,
-                    relevanceScore: parseInt(relevanceScore) || 5,
-                    fundsAllocated,
-                    keywords
+            document.getElementById('registerBtn').addEventListener('click', () => {
+                const userData = {
+                    firstName: document.getElementById('firstName').value,
+                    lastName: document.getElementById('lastName').value,
+                    email: document.getElementById('registerEmail').value,
+                    password: document.getElementById('registerPassword').value,
+                    organization: document.getElementById('organization').value
                 };
                 
-                const response = await fetch('/api/admin/add-bill', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(billData)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                if (userData.firstName && userData.lastName && userData.email && userData.password) {
+                    register(userData);
                 }
-                
-                const data = await response.json();
-                addDebug(`Bill created successfully: ${data.bill.billNumber}`);
-                showAddBillMessage(`✅ Bill "${data.bill.billNumber}" created successfully!`, false);
-                
-                // Clear form after successful creation
-                setTimeout(() => {
-                    hideAddBillModal();
-                    // Refresh the bills list
-                    loadEnhancedBills();
-                }, 2000);
-                
-            } catch (error) {
-                addDebug(`Failed to create bill: ${error.message}`);
-                showAddBillMessage(`❌ Failed to create bill: ${error.message}`, true);
-            } finally {
-                saveBillBtn.disabled = false;
-                saveBillBtn.textContent = 'Save Bill';
-            }
-        }
-
-        // Test basic connection
-        async function testConnection() {
-            addDebug('Testing basic connection...');
-            try {
-                const response = await fetch('/health');
-                addDebug(`Health response status: ${response.status}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`Health check data: ${JSON.stringify(data)}`);
-                showMessage(`✅ Connection OK: ${data.status} (Version: ${data.version || 'v3.1.0'})`, false);
-            } catch (error) {
-                addDebug(`Connection failed: ${error.message}`);
-                showMessage(`❌ Connection Error: ${error.message}`, true);
-            }
-        }
-
-        // Test API endpoint
-        async function testAPICall() {
-            addDebug('Testing enhanced API endpoint...');
-            try {
-                const response = await fetch('/api');
-                addDebug(`API response status: ${response.status}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`Enhanced API test data: ${JSON.stringify(data).substring(0, 150)}...`);
-                showMessage(`✅ Enhanced API OK: ${data.message} (v${data.version})`, false);
-            } catch (error) {
-                addDebug(`Enhanced API test failed: ${error.message}`);
-                showMessage(`❌ API Error: ${error.message}`, true);
-            }
-        }
-
-        // Test LegiScan API
-        async function testLegiScanAPI() {
-            if (!authToken) {
-                showMessage('❌ Please login first to test LegiScan API', true);
-                return;
-            }
-
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('❌ Admin access required for LegiScan testing', true);
-                return;
-            }
-
-            addDebug('Testing FIXED LegiScan API connectivity...');
-            updateAPIStatus('testing');
+            });
             
-            try {
-                const response = await fetch('/api/admin/test-legiscan-fixed', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                addDebug(`FIXED LegiScan test response status: ${response.status}`);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`FIXED LegiScan test result: ${JSON.stringify(data)}`);
-                
-                if (data.success) {
-                    const results = data.testResults;
-                    let statusMessage = `✅ FIXED LegiScan Working! `;
-                    
-                    if (results.connectivity) statusMessage += `Connectivity ✅ `;
-                    if (results.searchTest) statusMessage += `Search ✅ `;
-                    if (results.masterListTest) statusMessage += `Master List ✅ `;
-                    if (results.billDetailsTest) statusMessage += `Bill Details ✅`;
-                    
-                    showMessage(statusMessage, false);
-                    updateAPIStatus('connected');
-                } else {
-                    const errors = data.testResults?.errors || [];
-                    showMessage(`⚠️ FIXED LegiScan Partial Success: ${errors.join(', ')}`, true);
-                    updateAPIStatus('failed');
-                }
-                
-            } catch (error) {
-                addDebug(`FIXED LegiScan test failed: ${error.message}`);
-                showMessage(`❌ FIXED LegiScan Test Error: ${error.message}`, true);
-                updateAPIStatus('failed');
-            }
-        }
-
-        // Direct LegiScan API test
-        async function directLegiScanTest() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for direct API test', true);
-                return;
-            }
+            document.getElementById('showRegisterBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                showRegisterView();
+            });
             
-            addDebug('Running DIRECT LegiScan API test...');
-            updateAPIStatus('testing');
+            document.getElementById('showLoginBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                showLoginView();
+            });
             
-            try {
-                const response = await fetch('/api/admin/direct-legiscan-test', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                addDebug(`Direct API test completed: ${JSON.stringify(data.summary)}`);
-                
-                if (data.summary && data.summary.overallStatus === 'WORKING') {
-                    let message = `✅ DIRECT API TEST PASSED! `;
-                    message += `${data.summary.passed}/${data.summary.totalTests} tests passed.`;
-                    
-                    showMessage(message, false);
-                    updateAPIStatus('connected');
-                    console.log('📊 Detailed Test Results:', data.testResults);
-                    
-                } else {
-                    let message = `❌ DIRECT API TEST FAILED!`;
-                    if (data.summary) {
-                        message += ` ${data.summary.failed}/${data.summary.totalTests} tests failed.`;
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            
+            // Admin events
+            document.getElementById('llmSyncBtn').addEventListener('click', triggerLLMSync);
+            
+            // Search and filter events
+            let searchTimeout;
+            document.getElementById('searchInput').addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(filterAndDisplayBills, 500);
+            });
+            
+            ['stateFilter', 'statusFilter', 'sourceFilter', 'relevanceFilter'].forEach(id => {
+                document.getElementById(id).addEventListener('change', filterAndDisplayBills);
+            });
+            
+            // Enter key support
+            ['loginEmail', 'loginPassword'].forEach(id => {
+                document.getElementById(id).addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('loginBtn').click();
                     }
-                    
-                    showMessage(message, true);
-                    updateAPIStatus('failed');
-                }
-                
-            } catch (error) {
-                addDebug(`Direct API test failed: ${error.message}`);
-                showMessage(`❌ Direct API test error: ${error.message}`, true);
-                updateAPIStatus('failed');
-            }
-        }
-
-        // Simple LegiScan API test
-        async function simpleLegiScanTest() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for simple API test', true);
-                return;
-            }
-            
-            addDebug('Running SIMPLE LegiScan API test...');
-            
-            try {
-                const response = await fetch('/api/admin/simple-legiscan-test', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
                 });
-                
-                const data = await response.json();
-                addDebug(`Simple API test: ${JSON.stringify(data)}`);
-                
-                if (data.success && data.apiResponse?.status === 'OK') {
-                    showMessage(`✅ SIMPLE API TEST PASSED! Status: ${data.apiResponse.status}`, false);
-                    console.log('📊 API Response:', data.apiResponse);
-                } else {
-                    showMessage(`❌ SIMPLE API TEST FAILED! ${data.error || 'Unknown error'}`, true);
-                }
-                
-            } catch (error) {
-                showMessage(`❌ Simple API test error: ${error.message}`, true);
-            }
-        }
+            });
+        });
 
-        // Add test bill (backwards compatibility)
-        async function addTestBill() {
-            showAddBillModal();
-        }
-
-        // Update API status indicator
-        function updateAPIStatus(status) {
-            const apiStatusElement = document.getElementById('apiStatus');
-            if (apiStatusElement) {
-                switch(status) {
-                    case 'connected':
-                        apiStatusElement.textContent = '✅ Connected';
-                        apiStatusElement.style.color = '#27ae60';
-                        break;
-                    case 'failed':
-                        apiStatusElement.textContent = '❌ Failed';
-                        apiStatusElement.style.color = '#e74c3c';
-                        break;
-                    case 'testing':
-                        apiStatusElement.textContent = '🔄 Testing...';
-                        apiStatusElement.style.color = '#f39c12';
-                        break;
-                    default:
-                        apiStatusElement.textContent = '⚠️ Unknown';
-                        apiStatusElement.style.color = '#95a5a6';
-                }
-            }
-        }
-
-        // Perform login
-        async function performLogin() {
-            const emailInput = document.getElementById('email');
-            const passwordInput = document.getElementById('password');
-            const loginBtn = document.getElementById('loginBtn');
+        function filterAndDisplayBills() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const stateFilter = document.getElementById('stateFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const sourceFilter = document.getElementById('sourceFilter').value;
+            const relevanceFilter = document.getElementById('relevanceFilter').value;
             
-            if (!emailInput || !passwordInput || !loginBtn) {
-                addDebug('Login form elements not found');
-                return;
-            }
-            
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            
-            addDebug(`LOGIN attempt for: ${email}`);
-
-            if (!email || !password) {
-                addDebug('Missing credentials');
-                showMessage('Please enter both email and password', true);
-                return;
-            }
-
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Signing In...';
-
-            try {
-                addDebug('Creating login request...');
-                
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                addDebug(`Login response status: ${response.status}`);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-
-                const data = await response.json();
-                addDebug('Login response parsed successfully');
-
-                if (data.accessToken) {
-                    try {
-                        localStorage.setItem('accessToken', data.accessToken);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                    } catch (e) {
-                        addDebug('Cannot save to localStorage, continuing anyway');
-                    }
-                    
-                    currentUser = data.user;
-                    authToken = data.accessToken;
-                    addDebug('Login successful, showing main interface');
-                    showMainInterface();
-                    loadEnhancedDashboard();
-                } else {
-                    addDebug('No token in response');
-                    showMessage(data.error || 'Login failed - no token received', true);
-                }
-
-            } catch (error) {
-                addDebug(`LOGIN ERROR: ${error.message}`);
-                showMessage(`Login failed: ${error.message}`, true);
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'Sign In';
-            }
-        }
-
-        // Logout function
-        function logout() {
-            addDebug('Logging out from enhanced system');
-            clearAuthData();
-            showLogin();
-        }
-
-        // Load enhanced dashboard
-        async function loadEnhancedDashboard() {
-            addDebug('Loading enhanced dashboard...');
-            await Promise.all([
-                loadEnhancedBills(),
-                loadEnhancedSyncStatus()
-            ]);
-        }
-
-        // Load enhanced bills
-        async function loadEnhancedBills() {
-            addDebug('Loading enhanced bills with FIXED LegiScan integration...');
-            
-            if (!authToken) {
-                addDebug('No auth token - cannot load enhanced bills');
-                showMessage('Authentication required', true);
-                return;
-            }
-
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const billsContainer = document.getElementById('billsContainer');
-            const noBillsMessage = document.getElementById('noBillsMessage');
-            
-            if (loadingIndicator) loadingIndicator.style.display = 'block';
-            if (billsContainer) billsContainer.style.display = 'none';
-            if (noBillsMessage) noBillsMessage.style.display = 'none';
-
-            try {
-                const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
-                const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
-                const source = document.getElementById('sourceFilter')?.value || 'all';
-                
-                const searchParams = new URLSearchParams({
-                    limit: '50',
-                    sortBy: sortBy,
-                    sortOrder: sortOrder,
-                    source: source
-                });
-
-                const response = await fetch(`/api/bills?${searchParams}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                addDebug(`Enhanced bills response status: ${response.status}`);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`Enhanced bills data received: ${data.bills ? data.bills.length : 0} bills`);
-                
-                allBills = data.bills || [];
-                updateEnhancedStats(data.stats || {});
-                filterAndDisplayEnhancedBills();
-
-            } catch (error) {
-                addDebug(`Error loading enhanced bills: ${error.message}`);
-                if (loadingIndicator) {
-                    loadingIndicator.innerHTML = `
-                        <div style="color: #e74c3c; text-align: center;">
-                            <h3>Error Loading Enhanced Bills</h3>
-                            <p>${error.message}</p>
-                            <button id="retryBillsBtn" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;">Try Again</button>
-                        </div>
-                    `;
-                    
-                    const retryBtn = document.getElementById('retryBillsBtn');
-                    if (retryBtn) {
-                        retryBtn.addEventListener('click', loadEnhancedBills);
-                    }
-                }
-            }
-        }
-
-        // Update enhanced statistics
-        function updateEnhancedStats(stats) {
-            const totalBillsCount = document.getElementById('totalBillsCount');
-            const legiscanBillsCount = document.getElementById('legiscanBillsCount');
-            const manualBillsCount = document.getElementById('manualBillsCount');
-            const relevantBillsCount = document.getElementById('relevantBillsCount');
-            const keywordsCount = document.getElementById('keywordsCount');
-            
-            if (totalBillsCount) totalBillsCount.textContent = stats.totalBills || allBills.length || 0;
-            if (legiscanBillsCount) legiscanBillsCount.textContent = stats.legiscanBills || 0;
-            if (manualBillsCount) manualBillsCount.textContent = stats.manualBills || 0;
-            if (relevantBillsCount) {
-                const highRelevance = stats.highRelevanceBills || allBills.filter(bill => (bill.relevanceScore || 0) >= 5).length;
-                relevantBillsCount.textContent = highRelevance;
-            }
-            if (keywordsCount) keywordsCount.textContent = '40+';
-        }
-
-        // Filter and display enhanced bills
-        function filterAndDisplayEnhancedBills() {
-            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const stateFilter = document.getElementById('stateFilter')?.value || 'all';
-            const statusFilter = document.getElementById('statusFilter')?.value || 'all';
-            const sourceFilter = document.getElementById('sourceFilter')?.value || 'all';
-            
-            filteredBills = allBills.filter(bill => {
+            const filteredBills = bills.filter(bill => {
                 const matchesSearch = !searchTerm || 
                     (bill.title && bill.title.toLowerCase().includes(searchTerm)) ||
                     (bill.description && bill.description.toLowerCase().includes(searchTerm)) ||
                     (bill.keywords && bill.keywords.toLowerCase().includes(searchTerm)) ||
-                    (bill.subjects && bill.subjects.toLowerCase().includes(searchTerm)) ||
-                    (bill.billNumber && bill.billNumber.toLowerCase().includes(searchTerm)) ||
-                    (bill.sponsors && bill.sponsors.toLowerCase().includes(searchTerm));
+                    (bill.billNumber && bill.billNumber.toLowerCase().includes(searchTerm));
                 
                 const matchesState = stateFilter === 'all' || bill.stateCode === stateFilter;
                 const matchesStatus = statusFilter === 'all' || (bill.status && bill.status.toLowerCase().includes(statusFilter));
                 const matchesSource = sourceFilter === 'all' || bill.sourceType === sourceFilter;
                 
-                return matchesSearch && matchesState && matchesStatus && matchesSource;
+                let matchesRelevance = true;
+                if (relevanceFilter !== 'all') {
+                    const score = bill.relevanceScore || 0;
+                    if (relevanceFilter === 'high') matchesRelevance = score >= 7;
+                    else if (relevanceFilter === 'medium') matchesRelevance = score >= 4 && score < 7;
+                    else if (relevanceFilter === 'low') matchesRelevance = score < 4;
+                }
+                
+                return matchesSearch && matchesState && matchesStatus && matchesSource && matchesRelevance;
             });
             
-            const sortBy = document.getElementById('sortSelect')?.value || 'relevanceScore';
-            const sortOrder = document.getElementById('sortOrderSelect')?.value || 'DESC';
-            
-            filteredBills.sort((a, b) => {
-                let aVal = a[sortBy] || 0;
-                let bVal = b[sortBy] || 0;
-                
-                if (typeof aVal === 'string') {
-                    aVal = aVal.toLowerCase();
-                    bVal = (bVal || '').toLowerCase();
-                }
-                
-                if (sortOrder === 'DESC') {
-                    return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
-                } else {
-                    return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                }
-            });
-            
-            currentPage = 1;
-            displayEnhancedBills();
+            // Update bills array temporarily for display
+            const originalBills = bills;
+            bills = filteredBills;
+            displayBills();
+            bills = originalBills;
         }
-
-        // Display enhanced bills
-        function displayEnhancedBills() {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const billsContainer = document.getElementById('billsContainer');
-            const noBillsMessage = document.getElementById('noBillsMessage');
-            const billsGrid = document.getElementById('billsGrid');
-            
-            if (loadingIndicator) loadingIndicator.style.display = 'none';
-            
-            if (filteredBills.length === 0) {
-                if (billsContainer) billsContainer.style.display = 'none';
-                if (noBillsMessage) noBillsMessage.style.display = 'block';
-                return;
-            }
-            
-            if (billsContainer) billsContainer.style.display = 'block';
-            if (noBillsMessage) noBillsMessage.style.display = 'none';
-            
-            const startIndex = (currentPage - 1) * billsPerPage;
-            const endIndex = startIndex + billsPerPage;
-            const billsToShow = filteredBills.slice(startIndex, endIndex);
-            
-            if (billsGrid) {
-                billsGrid.innerHTML = '';
-                
-                billsToShow.forEach(bill => {
-                    const billCard = document.createElement('div');
-                    billCard.className = 'bill-card';
-                    
-                    const keywords = bill.keywords ? bill.keywords.split(',').map(k => k.trim()).filter(k => k) : [];
-                    const keywordTags = keywords.slice(0, 5).map(keyword => 
-                        `<span class="keyword-tag">${keyword}</span>`
-                    ).join('');
-                    
-                    const relevanceScore = bill.relevanceScore || 0;
-                    let relevanceClass = 'relevance-low';
-                    let relevanceText = 'Low';
-                    if (relevanceScore >= 8) {
-                        relevanceClass = 'relevance-high';
-                        relevanceText = 'Very High';
-                    } else if (relevanceScore >= 6) {
-                        relevanceClass = 'relevance-high';
-                        relevanceText = 'High';
-                    } else if (relevanceScore >= 4) {
-                        relevanceClass = 'relevance-medium';
-                        relevanceText = 'Medium';
-                    }
-                    
-                    const relevanceTag = `<span class="relevance-score ${relevanceClass}">${relevanceText}: ${relevanceScore}/10</span>`;
-                    const progressPercentage = bill.progressPercentage || 0;
-                    
-                    const introducedDate = bill.introducedDate ? new Date(bill.introducedDate).toLocaleDateString() : 'Unknown';
-                    const lastSynced = bill.lastSynced ? new Date(bill.lastSynced).toLocaleDateString() : 'Never';
-                    const chamber = bill.chamber || 'Unknown';
-                    const sponsors = bill.sponsors || 'Not specified';
-                    
-                    billCard.innerHTML = `
-                        <div class="bill-header">
-                            <div class="bill-badges">
-                                <span class="bill-number">${bill.billNumber || 'Unknown'}</span>
-                                <span class="bill-state">${bill.stateCode || 'Unknown'}</span>
-                                <span class="source-badge source-${bill.sourceType || 'manual'}">${bill.sourceType || 'manual'}</span>
-                            </div>
-                        </div>
-                        <h3 class="bill-title">${bill.title || 'No title available'}</h3>
-                        
-                        <div class="bill-meta">
-                            <div class="meta-item">
-                                <span>📊 Status:</span>
-                                <span class="bill-status">${bill.status || 'Unknown'}</span>
-                            </div>
-                            <div class="meta-item">
-                                <span>🏛️ Chamber:</span>
-                                <span>${chamber}</span>
-                            </div>
-                            <div class="meta-item">
-                                <span>📅 Introduced:</span>
-                                <span>${introducedDate}</span>
-                            </div>
-                            <div class="meta-item">
-                                <span>🔄 Last Synced:</span>
-                                <span>${lastSynced}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="bill-progress-container">
-                            <div class="bill-progress-label">
-                                <span>Legislative Progress</span>
-                                <span class="progress-percentage">${progressPercentage}%</span>
-                            </div>
-                            <div class="bill-progress">
-                                <div class="bill-progress-fill" style="width: ${progressPercentage}%"></div>
-                            </div>
-                        </div>
-                        
-                        <p class="bill-description">${(bill.description || 'No description available').substring(0, 250)}${bill.description && bill.description.length > 250 ? '...' : ''}</p>
-                        
-                        <div class="bill-keywords">
-                            ${keywordTags}
-                            ${relevanceTag}
-                        </div>
-                        
-                        <div class="enhanced-info">
-                            <h5>Enhanced Information</h5>
-                            <p><strong>Funding:</strong> ${bill.fundsAllocated || 'Not specified'}</p>
-                            <p><strong>Sponsors:</strong> ${sponsors.substring(0, 100)}${sponsors.length > 100 ? '...' : ''}</p>
-                            ${bill.subjects ? `<p><strong>Subjects:</strong> ${bill.subjects.substring(0, 100)}${bill.subjects.length > 100 ? '...' : ''}</p>` : ''}
-                            ${bill.legiscanUrl ? `<p><strong>LegiScan URL:</strong> <a href="${bill.legiscanUrl}" target="_blank" style="color: #3498db;">View on LegiScan</a></p>` : ''}
-                        </div>
-                    `;
-                    
-                    billsGrid.appendChild(billCard);
-                });
-            }
-            
-            addDebug(`Displayed ${billsToShow.length} enhanced bills (page ${currentPage})`);
-        }
-
-        // Load enhanced sync status
-        async function loadEnhancedSyncStatus() {
-            addDebug('Loading enhanced sync status...');
-            const statusText = document.getElementById('statusText');
-            
-            if (!currentUser || currentUser.role !== 'admin') {
-                if (statusText) {
-                    statusText.innerHTML = '📊 Enhanced bills loaded from database • Ready to search and filter';
-                }
-                updateAPIStatus('unknown');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/admin/sync-status-enhanced', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                addDebug(`Enhanced sync status loaded: ${data.totalBills} total bills`);
-                
-                if (statusText) {
-                    const lastSync = data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
-                    const isRunning = data.currentlyRunning ? ' • 🔄 FIXED sync in progress' : '';
-                    
-                    statusText.innerHTML = `📊 Total: ${data.totalBills} • 🤖 LegiScan: ${data.legiscanBills} • ✋ Manual: ${data.manualBills} • ⭐ High Relevance: ${data.highRelevanceBills} • 🕒 Last Sync: ${lastSync}${isRunning}`;
-                }
-                
-                updateAPIStatus(data.apiKey === 'configured' ? 'connected' : 'failed');
-                
-            } catch (error) {
-                addDebug(`Error loading enhanced sync status: ${error.message}`);
-                if (statusText) {
-                    statusText.innerHTML = '⚠️ Enhanced sync status unavailable • System operational';
-                }
-                updateAPIStatus('failed');
-            }
-        }
-
-        // Sync enhanced LegiScan with FIXED API
-        async function syncEnhancedLegiScan() {
-            if (!currentUser || currentUser.role !== 'admin') {
-                showMessage('Admin access required for enhanced sync', true);
-                return;
-            }
-            
-            const syncBtn = document.getElementById('syncBtn');
-            if (!syncBtn) return;
-            
-            addDebug('Starting FIXED LegiScan sync...');
-            
-            syncBtn.disabled = true;
-            syncBtn.textContent = 'FIXED Syncing...';
-            
-            try {
-                const response = await fetch('/api/admin/sync-bills-fixed', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                const data = await response.json();
-                addDebug(`FIXED sync initiated: ${data.message}`);
-                showMessage('🚀 FIXED LegiScan sync started! Using proven API calls. New bills should appear within 10-15 minutes.', false);
-                
-                const statusText = document.getElementById('statusText');
-                if (statusText) {
-                    statusText.innerHTML = '🔄 FIXED LegiScan sync in progress • Using working API strategy';
-                }
-                
-                setTimeout(() => {
-                    loadEnhancedDashboard();
-                }, 20000);
-                
-            } catch (error) {
-                addDebug(`FIXED sync error: ${error.message}`);
-                showMessage(`FIXED sync failed: ${error.message}`, true);
-            } finally {
-                setTimeout(() => {
-                    syncBtn.disabled = false;
-                    syncBtn.textContent = 'FIXED Sync';
-                }, 15000);
-            }
-        }
-
-        // Initialize enhanced app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            addDebug('DOM loaded, setting up ENHANCED app with FIXED API...');
-            
-            clearAuthData();
-            showLogin();
-            
-            // Set up ALL event listeners
-            const testConnectionBtn = document.getElementById('testConnectionBtn');
-            const testAPIBtn = document.getElementById('testAPIBtn');
-            const testLegiScanBtn = document.getElementById('testLegiScanBtn');
-            const testLegiScanMainBtn = document.getElementById('testLegiScanMainBtn');
-            const directApiTestBtn = document.getElementById('directApiTestBtn');
-            const simpleApiTestBtn = document.getElementById('simpleApiTestBtn');
-            const addTestBillBtn = document.getElementById('addTestBillBtn');
-            const addBillMainBtn = document.getElementById('addBillMainBtn');
-            const loginBtn = document.getElementById('loginBtn');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const passwordInput = document.getElementById('password');
-            const searchBtn = document.getElementById('searchBtn');
-            const syncBtn = document.getElementById('syncBtn');
-            const searchInput = document.getElementById('searchInput');
-            const stateFilter = document.getElementById('stateFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            const sourceFilter = document.getElementById('sourceFilter');
-            const sortSelect = document.getElementById('sortSelect');
-            const sortOrderSelect = document.getElementById('sortOrderSelect');
-            
-            // Add Bill modal event listeners
-            const cancelAddBillBtn = document.getElementById('cancelAddBillBtn');
-            const saveBillBtn = document.getElementById('saveBillBtn');
-            
-            // Add all event listeners with error checking
-            if (testConnectionBtn) {
-                testConnectionBtn.addEventListener('click', testConnection);
-                addDebug('Test connection button listener added');
-            }
-            
-            if (testAPIBtn) {
-                testAPIBtn.addEventListener('click', testAPICall);
-                addDebug('Test API button listener added');
-            }
-            
-            if (testLegiScanBtn) {
-                testLegiScanBtn.addEventListener('click', testLegiScanAPI);
-                addDebug('Test LegiScan button listener added');
-            }
-            
-            if (testLegiScanMainBtn) {
-                testLegiScanMainBtn.addEventListener('click', testLegiScanAPI);
-                addDebug('Main test LegiScan button listener added');
-            }
-            
-            if (directApiTestBtn) {
-                directApiTestBtn.addEventListener('click', directLegiScanTest);
-                addDebug('Direct API test button listener added');
-            }
-            
-            if (simpleApiTestBtn) {
-                simpleApiTestBtn.addEventListener('click', simpleLegiScanTest);
-                addDebug('Simple API test button listener added');
-            }
-            
-            if (addTestBillBtn) {
-                addTestBillBtn.addEventListener('click', addTestBill);
-                addDebug('Add test bill button listener added');
-            }
-            
-            if (addBillMainBtn) {
-                addBillMainBtn.addEventListener('click', showAddBillModal);
-                addDebug('Main add bill button listener added');
-            }
-            
-            if (loginBtn) {
-                loginBtn.addEventListener('click', performLogin);
-                addDebug('Login button listener added');
-            }
-            
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', logout);
-                addDebug('Logout button listener added');
-            }
-            
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        performLogin();
-                    }
-                });
-                addDebug('Password enter key listener added');
-            }
-            
-            if (searchBtn) {
-                searchBtn.addEventListener('click', filterAndDisplayEnhancedBills);
-                addDebug('Search button listener added');
-            }
-            
-            if (syncBtn) {
-                syncBtn.addEventListener('click', syncEnhancedLegiScan);
-                addDebug('Sync button listener added');
-            }
-            
-            if (searchInput) {
-                searchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        filterAndDisplayEnhancedBills();
-                    }
-                });
-                searchInput.addEventListener('input', function() {
-                    clearTimeout(this.searchTimeout);
-                    this.searchTimeout = setTimeout(filterAndDisplayEnhancedBills, 500);
-                });
-                addDebug('Search input listeners added');
-            }
-            
-            if (stateFilter) {
-                stateFilter.addEventListener('change', filterAndDisplayEnhancedBills);
-                addDebug('State filter listener added');
-            }
-            
-            if (statusFilter) {
-                statusFilter.addEventListener('change', filterAndDisplayEnhancedBills);
-                addDebug('Status filter listener added');
-            }
-            
-            if (sourceFilter) {
-                sourceFilter.addEventListener('change', filterAndDisplayEnhancedBills);
-                addDebug('Source filter listener added');
-            }
-            
-            if (sortSelect) {
-                sortSelect.addEventListener('change', loadEnhancedBills);
-                addDebug('Sort select listener added');
-            }
-            
-            if (sortOrderSelect) {
-                sortOrderSelect.addEventListener('change', loadEnhancedBills);
-                addDebug('Sort order select listener added');
-            }
-            
-            // Add Bill modal event listeners
-            if (cancelAddBillBtn) {
-                cancelAddBillBtn.addEventListener('click', hideAddBillModal);
-                addDebug('Cancel add bill button listener added');
-            }
-            
-            if (saveBillBtn) {
-                saveBillBtn.addEventListener('click', saveNewBill);
-                addDebug('Save bill button listener added');
-            }
-            
-            // Close modal when clicking outside
-            const addBillOverlay = document.getElementById('addBillOverlay');
-            if (addBillOverlay) {
-                addBillOverlay.addEventListener('click', function(e) {
-                    if (e.target === addBillOverlay) {
-                        hideAddBillModal();
-                    }
-                });
-            }
-            
-            // Enter key support in bill forms
-            const addBillNumber = document.getElementById('addBillNumber');
-            const addBillTitle = document.getElementById('addBillTitle');
-            
-            if (addBillNumber) {
-                addBillNumber.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        document.getElementById('addBillTitle').focus();
-                    }
-                });
-            }
-            
-            if (addBillTitle) {
-                addBillTitle.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        saveNewBill();
-                    }
-                });
-            }
-            
-            addDebug('All event listeners set up successfully');
-            
-            // Test connection automatically after a short delay
-            setTimeout(() => {
-                addDebug('Running automatic connection test...');
-                testConnection();
-            }, 1000);
-        });
     </script>
 </body>
 </html>
